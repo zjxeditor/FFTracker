@@ -39,7 +39,7 @@
  //
  //M*/
 
-#include "Features.h"
+#include "FeaturesExtractor.h"
 
 namespace CSRT{
 

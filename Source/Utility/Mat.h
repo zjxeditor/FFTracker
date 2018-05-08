@@ -78,7 +78,7 @@ public:
 	Mat(MemoryArena *storage = nullptr) : rows(0), cols(0), channels(0), size(0), arena(storage), data(nullptr) {}
 	Mat(int rowNum, int colNum, int channelNum, MemoryArena *storage = nullptr);
 	Mat(const std::string &filePath);
-	Mat(uint8_t *sourceData, int rowNum, int colNum, int channelNum, MemoryArena *storage = nullptr);
+	Mat(const uint8_t *sourceData, int rowNum, int colNum, int channelNum, MemoryArena *storage = nullptr);
 	Mat(const Mat &m);
 	Mat(Mat &&m) noexcept;
 	Mat &operator=(const Mat &m);
@@ -152,7 +152,7 @@ public:
 	// MatF Public Methods
 	MatF(MemoryArena *storage = nullptr) : rows(0), cols(0), size(0), arena(storage), data(nullptr) {}
 	MatF(int rowNum, int colNum, MemoryArena *storage = nullptr);
-	MatF(float *sourceData, int rowNum, int colNum, MemoryArena *storage = nullptr);
+	MatF(const float *sourceData, int rowNum, int colNum, MemoryArena *storage = nullptr);
 	MatF(const MatF &m);
 	MatF(MatF &&m) noexcept;
 	MatF &operator=(const MatF &m);
@@ -217,7 +217,7 @@ public:
 	// MatF Public Methods
 	MatCF(MemoryArena *storage = nullptr) : rows(0), cols(0), size(0), arena(storage), data(nullptr) {}
 	MatCF(int rowNum, int colNum, MemoryArena *storage = nullptr);
-	MatCF(ComplexF *sourceData, int rowNum, int colNum, MemoryArena *storage = nullptr);
+	MatCF(const ComplexF *sourceData, int rowNum, int colNum, MemoryArena *storage = nullptr);
 	MatCF(const MatCF &m);
 	MatCF(MatCF &&m) noexcept;
 	MatCF &operator=(const MatCF &m);

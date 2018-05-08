@@ -7,7 +7,7 @@
 #include "../Utility/Memory.h"
 #include "../Utility/FFT.h"
 #include "Filter.h"
-#include "Features.h"
+#include "FeaturesExtractor.h"
 
 namespace CSRT {
 

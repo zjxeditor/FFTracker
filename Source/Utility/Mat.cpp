@@ -312,7 +312,7 @@ Mat::Mat(const std::string& filePath)
 		Critical("Mat load failed for file: " + filePath + stbi_failure_reason());
 }
 
-Mat::Mat(uint8_t *sourceData, int rowNum, int colNum, int channelNum, MemoryArena *storage)
+Mat::Mat(const uint8_t *sourceData, int rowNum, int colNum, int channelNum, MemoryArena *storage)
 	: rows(rowNum), cols(colNum), channels(channelNum), arena(storage), data(nullptr) {
 	size = rows * cols * channels;
 	if (arena) data = arena->Alloc<uint8_t>(size, false);
@@ -872,7 +872,7 @@ MatF::MatF(int rowNum, int colNum, MemoryArena *storage)
 	memset(data, 0, size * sizeof(float));
 }
 
-MatF::MatF(float *sourceData, int rowNum, int colNum, MemoryArena *storage)
+MatF::MatF(const float *sourceData, int rowNum, int colNum, MemoryArena *storage)
 	: rows(rowNum), cols(colNum), arena(storage), data(nullptr) {
 	size = rows * cols;
 	if (arena) data = arena->Alloc<float>(size, false);
@@ -1384,7 +1384,7 @@ MatCF::MatCF(int rowNum, int colNum, MemoryArena *storage)
 	memset(data, 0, size * sizeof(ComplexF));
 }
 
-MatCF::MatCF(ComplexF *sourceData, int rowNum, int colNum, MemoryArena *storage)
+MatCF::MatCF(const ComplexF *sourceData, int rowNum, int colNum, MemoryArena *storage)
 	: rows(rowNum), cols(colNum), arena(storage), data(nullptr) {
 	size = rows * cols;
 	if (arena) data = (ComplexF*)arena->Alloc<TempInit>(size, false);

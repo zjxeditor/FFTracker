@@ -4,7 +4,7 @@
 
 #include "Tracker.h"
 #include "DSST.h"
-#include "Features.h"
+#include "FeaturesExtractor.h"
 #include "Filter.h"
 #include "Segment.h"
 #include "../Utility/Parallel.h"
