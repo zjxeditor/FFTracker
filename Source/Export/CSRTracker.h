@@ -10,14 +10,24 @@
 #ifndef CSRT_CSRTRACKER_H
 #define CSRT_CSRTRACKER_H
 
+#ifdef _WIN32
+#ifdef CSRT_EXPORT
+#define CSRT_API __declspec(dllexport)
+#else
+#define CSRT_API __declspec(dllimport)
+#endif
+#else
+#define CSRT_API
+#endif
+
 namespace CSRT {
 
 //
 // Global Functions
 //
 
-void StartSystem(const char *logPath = nullptr);
-void CloseSystem();
+CSRT_API void StartSystem(const char *logPath = nullptr);
+CSRT_API void CloseSystem();
 
 
 //
@@ -30,7 +40,7 @@ enum class CSRTWindowType {
     Kaiser = 2
 };
 
-struct CSRTrackerParams {
+struct CSRT_API CSRTrackerParams {
     // Default constructor.
     CSRTrackerParams();
 
@@ -77,7 +87,7 @@ struct CSRTrackerParams {
     float PSRThreshold;		// PSR threshold used for failure detection. 20.0 ~ 60.0 is indicates strong peaks.
 };
 
-struct Bounds {
+struct CSRT_API Bounds {
     Bounds() : x0(0), y0(0), x1(0), y1(0) {}
     Bounds(int xx0, int yy0, int w, int h) : x0(xx0), y0(yy0), x1(xx0 + w), y1(yy0 + h) {}
 
@@ -95,7 +105,7 @@ struct Bounds {
 class Tracker;
 class MemoryArena;
 
-class CSRTracker {
+class CSRT_API CSRTracker {
 public:
     CSRTracker(int rows, int cols) : CSRTracker(rows, cols, CSRTrackerParams()) {}
     CSRTracker(int rows, int cols, const CSRTrackerParams &trackerParams);

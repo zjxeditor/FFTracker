@@ -14,6 +14,8 @@ if (ARCHITECTURE MATCHES "Android-*")
     message(STATUS "Detect Android platform ${ARCHITECTURE}.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti -fexceptions")
     add_definitions(-D__ANDROID__)
+elseif(WIN32)
+    add_definitions(-DCSRT_EXPORT)
 endif ()
 
 # Add sanitizers
