@@ -26,8 +26,8 @@ namespace CSRT {
 // Global Functions
 //
 
-CSRT_API void StartSystem(const char *logPath = nullptr);
-CSRT_API void CloseSystem();
+extern CSRT_API void StartSystem(const char *logPath = nullptr);
+extern CSRT_API void CloseSystem();
 
 
 //
