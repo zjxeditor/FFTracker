@@ -65,7 +65,7 @@ inline static void RemoveLoop(ParallelForLoop *loop) {
 // Each addtional thread's work function.
 static void WorkerThreadFunc(int tIndex, std::shared_ptr<Barrier> barrier) {
 	// Initialize thread.
-	Info("Started execution in worker thread " + std::to_string(tIndex));
+	Info(StringPrintf("Started execution in worker thread %d", tIndex));
 	ThreadIndex = tIndex;
 
 	// The main thread sets up a barrier so that it can be sure that all
@@ -117,13 +117,13 @@ static void WorkerThreadFunc(int tIndex, std::shared_ptr<Barrier> barrier) {
 		}
 	}
 
-	Info("Exiting worker thread " + std::to_string(tIndex));
+	Info(StringPrintf("Exiting worker thread %d", tIndex));
 }
 
 // Background thread function.
 static void BackgroundFunc(int tIndex, std::shared_ptr<Barrier> barrier) {
 	// Initialize thread.
-	Info("Started the background thread " + std::to_string(tIndex));
+	Info(StringPrintf("Started the background thread %d", tIndex));
 	ThreadIndex = tIndex;
 
 	// The main thread sets up a barrier so that it can be sure that all
