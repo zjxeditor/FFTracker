@@ -111,18 +111,26 @@ public:
     CSRTracker(int rows, int cols, const CSRTrackerParams &trackerParams);
     ~CSRTracker();
 
-    // Input image data is continous unsigned char memory block, in RGB interleaved format.
-    void Initialize(const unsigned char *sourceData, int channels, const Bounds &bb);
-    bool Update(const unsigned char  *sourceData, int channels, Bounds &bb, float &score);
+    // Input image data is continuous unsigned char memory block, in RGB interleaved format.
+    void Initialize(unsigned char *sourceData, int channels, const Bounds &bb);
+    bool Update(unsigned char  *sourceData, int channels, Bounds &bb, float &score);
     void SetReinitialize();
+    void SetDrawMode(bool enableDraw, unsigned char r, unsigned char g, unsigned char b, float a);
 
 private:
-    void Rgba2Rgb(const unsigned char *srcData, unsigned char *dstData);
+    void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData);
+    void DrawRect(unsigned char *srcData, int channels, const Bounds &bb);
 
     int rowNum;
-    int colsNum;
+    int colNum;
     Tracker *tracker;
     MemoryArena *arena;
+
+    bool draw;
+    unsigned char red;
+    unsigned char green;
+    unsigned char blue;
+    float alpha;
 };
 
 }   // namespace CSRT

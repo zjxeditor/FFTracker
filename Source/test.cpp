@@ -67,9 +67,9 @@ public:
         currentFrame.Resize(postFrame, imageScale, imageScale);
         bbgt = gt[0] * imageScale;
         pTracker = std::unique_ptr<CSRTracker>(new CSRTracker(postFrame.Rows(), postFrame.Cols(), params));
+        pTracker->SetDrawMode(true, 255, 0, 0, 0.5f);
         Bounds initbbgt;
         memcpy(&initbbgt, &bbgt, sizeof(Bounds));
-
         pTracker->Initialize(postFrame.Data(), 3, initbbgt);
         GImageMemoryArena.ResetImgLoadArena();
 

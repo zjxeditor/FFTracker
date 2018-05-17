@@ -84,7 +84,8 @@ CSRTrackerParams::CSRTrackerParams() {
 }
 
 
-CSRTracker::CSRTracker(int rows, int cols, const CSRT::CSRTrackerParams &trackerParams) : rowNum(rows), colsNum(cols) {
+CSRTracker::CSRTracker(int rows, int cols, const CSRT::CSRTrackerParams &trackerParams)
+        : rowNum(rows), colNum(cols), draw(false), red(0), green(0), blue(0), alpha(0.0f) {
     TrackerParams params;
     memcpy(&params, &trackerParams, sizeof(TrackerParams));
     tracker = new Tracker(params);
@@ -102,13 +103,13 @@ CSRTracker::~CSRTracker() {
     }
 }
 
-void CSRTracker::Initialize(const unsigned char *sourceData, int channels, const CSRT::Bounds &bb) {
+void CSRTracker::Initialize(unsigned char *sourceData, int channels, const CSRT::Bounds &bb) {
     Mat image(arena);
     if (channels == 4) {
-        image.Reshape(rowNum, colsNum, 3, false);
+        image.Reshape(rowNum, colNum, 3, false);
         Rgba2Rgb(sourceData, image.Data());
     } else if (channels == 3) {
-        image = Mat(sourceData, rowNum, colsNum, 3, arena);
+        image = Mat(sourceData, rowNum, colNum, 3, arena);
     } else {
         Critical("CSRTracker::Initialize: unsupported channel count.");
         return;
@@ -118,15 +119,18 @@ void CSRTracker::Initialize(const unsigned char *sourceData, int channels, const
     memcpy(&initBox, &bb, sizeof(Bounds2i));
     tracker->Initialize(image, initBox);
     arena->Reset();
+
+    if(draw)
+        DrawRect(sourceData, channels, bb);
 }
 
-bool CSRTracker::Update(const unsigned char *sourceData, int channels, CSRT::Bounds &bb, float &score) {
+bool CSRTracker::Update(unsigned char *sourceData, int channels, CSRT::Bounds &bb, float &score) {
     Mat image(arena);
     if (channels == 4) {
-        image.Reshape(rowNum, colsNum, 3, false);
+        image.Reshape(rowNum, colNum, 3, false);
         Rgba2Rgb(sourceData, image.Data());
     } else if (channels == 3) {
-        image = Mat(sourceData, rowNum, colsNum, 3, arena);
+        image = Mat(sourceData, rowNum, colNum, 3, arena);
     } else {
         Critical("CSRTracker::Initialize: unsupported channel count.");
         return false;
@@ -136,6 +140,9 @@ bool CSRTracker::Update(const unsigned char *sourceData, int channels, CSRT::Bou
     bool res = tracker->Update(image, outputBox, score);
     memcpy(&bb, &outputBox, sizeof(Bounds2i));
     arena->Reset();
+
+    if(draw)
+        DrawRect(sourceData, channels, bb);
     return res;
 }
 
@@ -143,17 +150,52 @@ void CSRTracker::SetReinitialize() {
     tracker->SetReinitialize();
 }
 
-void CSRTracker::Rgba2Rgb(const unsigned char *srcData, unsigned char *dstData) {
+void CSRTracker::SetDrawMode(bool enableDraw, unsigned char r, unsigned char g, unsigned char b, float a) {
+    draw = enableDraw;
+    red = r;
+    green = g;
+    blue = b;
+    alpha = a;
+}
+
+void CSRTracker::Rgba2Rgb(unsigned char *srcData, unsigned char *dstData) {
     ParallelFor([&](int64_t y) {
-        const unsigned char *ps = srcData + y * colsNum * 4;
-        unsigned char *pd = dstData + y * colsNum * 3;
-        for(int i = 0; i < colsNum; ++i) {
+        const unsigned char *ps = srcData + y * colNum * 4;
+        unsigned char *pd = dstData + y * colNum * 3;
+        for (int i = 0; i < colNum; ++i) {
             *(pd++) = *(ps++);
             *(pd++) = *(ps++);
             *(pd++) = *(ps++);
             ++ps;
         }
     }, rowNum, 32);
+}
+
+void CSRTracker::DrawRect(unsigned char *srcData, int channels, const CSRT::Bounds &bb) {
+    if(bb.x0 < 0 || bb.y0 < 0 || bb.x1 > colNum || bb.y1 > rowNum) {
+        Error("CSRTracker::DrawRect: invalid bounding box to draw on the image.");
+        return;
+    }
+    int inc = 0;
+    if(channels == 3) inc = 1;
+    else if(channels == 4) inc = 2;
+    else {
+        Critical("CSRTracker::DrawRect: unsupported channel count.");
+        return;
+    }
+
+    ParallelFor([&](int64_t y) {
+        y += bb.y0;
+        unsigned char *ps = srcData + y * colNum * channels + bb.x0 * channels;
+        for (int i = bb.x0; i < bb.x1; ++i) {
+            *ps =  (unsigned char)Clamp((int)Lerp(alpha, *ps, red), 0, 255);
+            ++ps;
+            *ps =  (unsigned char)Clamp((int)Lerp(alpha, *ps, green), 0, 255);
+            ++ps;
+            *ps =  (unsigned char)Clamp((int)Lerp(alpha, *ps, blue), 0, 255);
+            ps += inc;
+        }
+    }, bb.y1 - bb.y0, 32);
 }
 
 }   // namespace CSRT
