@@ -20,7 +20,7 @@
 namespace CSRT {
 
 void StartSystem(const char *logPath) {
-    if(logPath == nullptr)
+    if (logPath == nullptr)
         CSRT::CreateLogger();
     else
         CSRT::CreateLogger(std::string(logPath));
@@ -92,26 +92,46 @@ CSRTracker::CSRTracker(int rows, int cols, const CSRT::CSRTrackerParams &tracker
 }
 
 CSRTracker::~CSRTracker() {
-    if(tracker) {
+    if (tracker) {
         delete tracker;
         tracker = nullptr;
     }
-    if(arena) {
+    if (arena) {
         delete arena;
         tracker = nullptr;
     }
 }
 
-void CSRTracker::Initialize(const unsigned char *sourceData, const CSRT::Bounds &bb) {
-    Mat image(sourceData, rowNum, colsNum, 3, arena);
+void CSRTracker::Initialize(const unsigned char *sourceData, int channels, const CSRT::Bounds &bb) {
+    Mat image(arena);
+    if (channels == 4) {
+        image.Reshape(rowNum, colsNum, 3, false);
+        Rgba2Rgb(sourceData, image.Data());
+    } else if (channels == 3) {
+        image = Mat(sourceData, rowNum, colsNum, 3, arena);
+    } else {
+        Critical("CSRTracker::Initialize: unsupported channel count.");
+        return;
+    }
+
     Bounds2i initBox;
     memcpy(&initBox, &bb, sizeof(Bounds2i));
     tracker->Initialize(image, initBox);
     arena->Reset();
 }
 
-bool CSRTracker::Update(const unsigned char *sourceData, CSRT::Bounds &bb, float &score) {
-    Mat image(sourceData, rowNum, colsNum, 3, arena);
+bool CSRTracker::Update(const unsigned char *sourceData, int channels, CSRT::Bounds &bb, float &score) {
+    Mat image(arena);
+    if (channels == 4) {
+        image.Reshape(rowNum, colsNum, 3, false);
+        Rgba2Rgb(sourceData, image.Data());
+    } else if (channels == 3) {
+        image = Mat(sourceData, rowNum, colsNum, 3, arena);
+    } else {
+        Critical("CSRTracker::Initialize: unsupported channel count.");
+        return false;
+    }
+
     Bounds2i outputBox;
     bool res = tracker->Update(image, outputBox, score);
     memcpy(&bb, &outputBox, sizeof(Bounds2i));
@@ -121,6 +141,19 @@ bool CSRTracker::Update(const unsigned char *sourceData, CSRT::Bounds &bb, float
 
 void CSRTracker::SetReinitialize() {
     tracker->SetReinitialize();
+}
+
+void CSRTracker::Rgba2Rgb(const unsigned char *srcData, unsigned char *dstData) {
+    ParallelFor([&](int64_t y) {
+        const unsigned char *ps = srcData + y * colsNum * 4;
+        unsigned char *pd = dstData + y * colsNum * 3;
+        for(int i = 0; i < colsNum; ++i) {
+            *(pd++) = *(ps++);
+            *(pd++) = *(ps++);
+            *(pd++) = *(ps++);
+            ++ps;
+        }
+    }, rowNum, 32);
 }
 
 }   // namespace CSRT

@@ -112,11 +112,13 @@ public:
     ~CSRTracker();
 
     // Input image data is continous unsigned char memory block, in RGB interleaved format.
-    void Initialize(const unsigned char *sourceData, const Bounds &bb);
-    bool Update(const unsigned char  *sourceData, Bounds &bb, float &score);
+    void Initialize(const unsigned char *sourceData, int channels, const Bounds &bb);
+    bool Update(const unsigned char  *sourceData, int channels, Bounds &bb, float &score);
     void SetReinitialize();
 
 private:
+    void Rgba2Rgb(const unsigned char *srcData, unsigned char *dstData);
+
     int rowNum;
     int colsNum;
     Tracker *tracker;

@@ -66,11 +66,11 @@ public:
         currentFrame = Mat(frames[0]);
         currentFrame.Resize(postFrame, imageScale, imageScale);
         bbgt = gt[0] * imageScale;
-
         pTracker = std::unique_ptr<CSRTracker>(new CSRTracker(postFrame.Rows(), postFrame.Cols(), params));
         Bounds initbbgt;
         memcpy(&initbbgt, &bbgt, sizeof(Bounds));
-        pTracker->Initialize(postFrame.Data(), initbbgt);
+
+        pTracker->Initialize(postFrame.Data(), 3, initbbgt);
         GImageMemoryArena.ResetImgLoadArena();
 
         bbgt = bbgt / imageScale;
@@ -93,7 +93,7 @@ public:
 
             TimePt startTime = TimeNow();
             Bounds outputbb;
-            bool res = pTracker->Update(postFrame.Data(), outputbb, score);
+            bool res = pTracker->Update(postFrame.Data(), 3, outputbb, score);
             memcpy(&bb, &outputbb, sizeof(Bounds));
             int64_t frameTime = Duration(startTime, TimeNow());
             GImageMemoryArena.ResetImgLoadArena();
@@ -119,7 +119,7 @@ public:
                     pTracker->SetReinitialize();
                     Bounds initbbgt;
                     memcpy(&initbbgt, &bbgt, sizeof(Bounds));
-                    pTracker->Initialize(postFrame.Data(), initbbgt);
+                    pTracker->Initialize(postFrame.Data(), 3, initbbgt);
                     GImageMemoryArena.ResetImgLoadArena();
 
                     bbgt = bbgt / imageScale;
