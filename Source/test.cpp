@@ -61,19 +61,17 @@ public:
         int64_t totalTime = 0;
         const int interval = 5;
 
-        Mat currentFrame, postFrame;
+        Mat currentFrame;
         Bounds2i bb, bbgt;
         currentFrame = Mat(frames[0]);
-        currentFrame.Resize(postFrame, imageScale, imageScale);
-        bbgt = gt[0] * imageScale;
-        pTracker = std::unique_ptr<CSRTracker>(new CSRTracker(postFrame.Rows(), postFrame.Cols(), params));
+        bbgt = gt[0];
+        pTracker = std::unique_ptr<CSRTracker>(new CSRTracker(currentFrame.Rows(), currentFrame.Cols(), imageScale, params));
         pTracker->SetDrawMode(true, 255, 0, 0, 0.5f);
         Bounds initbbgt;
         memcpy(&initbbgt, &bbgt, sizeof(Bounds));
-        pTracker->Initialize(postFrame.Data(), 3, initbbgt);
+        pTracker->Initialize(currentFrame.Data(), 3, initbbgt);
         GImageMemoryArena.ResetImgLoadArena();
 
-        bbgt = bbgt / imageScale;
         fout << bbgt.pMin.x << "\t" << bbgt.pMin.y << "\t" << (bbgt.pMax.x - bbgt.pMin.x) << "\t" << (bbgt.pMax.y - bbgt.pMin.y) << std::endl;
         fscore << "10000" << std::endl;
 
@@ -88,22 +86,21 @@ public:
             std::cout.flush();
 
             currentFrame = Mat(frames[i]);
-            currentFrame.Resize(postFrame, imageScale, imageScale);
-            bbgt = gt[i] * imageScale;
+            bbgt = gt[i];
 
             TimePt startTime = TimeNow();
             Bounds outputbb;
-            bool res = pTracker->Update(postFrame.Data(), 3, outputbb, score);
+            bool res = pTracker->Update(currentFrame.Data(), 3, outputbb, score);
             memcpy(&bb, &outputbb, sizeof(Bounds));
             int64_t frameTime = Duration(startTime, TimeNow());
             GImageMemoryArena.ResetImgLoadArena();
 
-            float intersectArea = (float)Intersect(bbgt, bb).Area();
-            float unionArea = (float)Union(bbgt, bb).Area();
+            float intersectArea = (float)Intersect(bbgt * imageScale, bb * imageScale).Area();
+            float unionArea = (float)Union(bbgt * imageScale, bb * imageScale).Area();
             float overlap = unionArea > 0 ? intersectArea / unionArea : 0;
 
             // Track failed.
-            if ((!res || overlap < overlapThreshold) && useReinit) {
+            if ((overlap < overlapThreshold) && useReinit) {
                 for (int k = 0; k < interval; ++k) {
                     fout << "-1\t-1\t-1\t-1" << std::endl;
                     fscore << std::to_string(-score) << std::endl;
@@ -113,23 +110,20 @@ public:
                 if (i < len) {
                     ++failedFrames;
                     currentFrame = std::move(Mat(frames[i]));
-                    currentFrame.Resize(postFrame, imageScale, imageScale);
-                    bbgt = gt[i] * imageScale;
+                    bbgt = gt[i];
 
                     pTracker->SetReinitialize();
                     Bounds initbbgt;
                     memcpy(&initbbgt, &bbgt, sizeof(Bounds));
-                    pTracker->Initialize(postFrame.Data(), 3, initbbgt);
+                    pTracker->Initialize(currentFrame.Data(), 3, initbbgt);
                     GImageMemoryArena.ResetImgLoadArena();
 
-                    bbgt = bbgt / imageScale;
                     fout << bbgt.pMin.x << "\t" << bbgt.pMin.y << "\t" << (bbgt.pMax.x - bbgt.pMin.x) << "\t" << (bbgt.pMax.y - bbgt.pMin.y) << std::endl;
                     fscore << "10000" << std::endl;
                 }
                 continue;
             }
 
-            bb = bb / imageScale;
             fout << bb.pMin.x << "\t" << bb.pMin.y << "\t" << (bb.pMax.x - bb.pMin.x) << "\t" << (bb.pMax.y - bb.pMin.y) << std::endl;
             fscore << std::to_string(score) << std::endl;
 

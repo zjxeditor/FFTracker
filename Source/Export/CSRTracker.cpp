@@ -84,8 +84,8 @@ CSRTrackerParams::CSRTrackerParams() {
 }
 
 
-CSRTracker::CSRTracker(int rows, int cols, const CSRT::CSRTrackerParams &trackerParams)
-        : rowNum(rows), colNum(cols), draw(false), red(0), green(0), blue(0), alpha(0.0f) {
+CSRTracker::CSRTracker(int rows, int cols, float scale, const CSRT::CSRTrackerParams &trackerParams)
+        : rowNum(rows), colNum(cols), scaleFactor(scale), draw(false), red(0), green(0), blue(0), alpha(0.0f) {
     TrackerParams params;
     memcpy(&params, &trackerParams, sizeof(TrackerParams));
     tracker = new Tracker(params);
@@ -114,10 +114,13 @@ void CSRTracker::Initialize(unsigned char *sourceData, int channels, const CSRT:
         Critical("CSRTracker::Initialize: unsupported channel count.");
         return;
     }
+    Mat scaledImage(arena);
+    image.Resize(scaledImage, scaleFactor, scaleFactor);
 
     Bounds2i initBox;
     memcpy(&initBox, &bb, sizeof(Bounds2i));
-    tracker->Initialize(image, initBox);
+    initBox *= scaleFactor;
+    tracker->Initialize(scaledImage, initBox);
     arena->Reset();
 
     if(draw)
@@ -135,9 +138,12 @@ bool CSRTracker::Update(unsigned char *sourceData, int channels, CSRT::Bounds &b
         Critical("CSRTracker::Initialize: unsupported channel count.");
         return false;
     }
+    Mat scaledImage(arena);
+    image.Resize(scaledImage, scaleFactor, scaleFactor);
 
     Bounds2i outputBox;
-    bool res = tracker->Update(image, outputBox, score);
+    bool res = tracker->Update(scaledImage, outputBox, score);
+    outputBox /= scaleFactor;
     memcpy(&bb, &outputBox, sizeof(Bounds2i));
     arena->Reset();
 

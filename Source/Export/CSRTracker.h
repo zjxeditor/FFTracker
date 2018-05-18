@@ -107,8 +107,8 @@ class MemoryArena;
 
 class CSRT_API CSRTracker {
 public:
-    CSRTracker(int rows, int cols) : CSRTracker(rows, cols, CSRTrackerParams()) {}
-    CSRTracker(int rows, int cols, const CSRTrackerParams &trackerParams);
+    CSRTracker(int rows, int cols, float scale) : CSRTracker(rows, cols, scale, CSRTrackerParams()) {}
+    CSRTracker(int rows, int cols, float scale, const CSRTrackerParams &trackerParams);
     ~CSRTracker();
 
     // Input image data is continuous unsigned char memory block, in RGB interleaved format.
@@ -123,6 +123,7 @@ private:
 
     int rowNum;
     int colNum;
+    float scaleFactor;
     Tracker *tracker;
     MemoryArena *arena;
 
