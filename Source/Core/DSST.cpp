@@ -84,10 +84,10 @@ void DSST::GetScaleFeatures(const Mat& img, MatF& feat, const Vector2i& pos, con
 	GFeatsExtractor.GetFeaturesHOG(resizePatch, hogs, 4, &arenas[ThreadIndex]);
 	int flen = (int)hogs[0].Size();
 	int fcount = (int)hogs.size();
-	feat.Reshape((int)factors.size(), flen * fcount);
+	MatF featT((int)factors.size(), flen * fcount, &arenas[ThreadIndex]);
 	ParallelFor([&](int64_t c) {
 		hogs[c].ReValue(window.Data()[0], 0.0f);
-		memcpy(feat.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
+		memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
 	}, fcount, 4);
 
 	// Get other scale level features in parallel.
@@ -102,15 +102,15 @@ void DSST::GetScaleFeatures(const Mat& img, MatF& feat, const Vector2i& pos, con
 		std::vector<MatF> scaleHogs;
 		GFeatsExtractor.GetFeaturesHOG(scaleResizePatch, scaleHogs, 4, &arenas[ThreadIndex]);
 
-		float *pd = feat.Data() + y * feat.Cols();
+		float *pd = featT.Data() + y * featT.Cols();
 		for (int i = 0; i < fcount; ++i) {
 			scaleHogs[i].ReValue(window.Data()[y], 0.0f);
 			memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
 		}
 	}, factors.size() - 1, 2);
 
-	// Tranpose the feat matrix.
-	GFFT.TransposeInPlace(feat);
+	// Transpose the feat matrix.
+	GFFT.Transpose(featT, feat);
 }
 
 void DSST::ResetArenas(bool background) const {

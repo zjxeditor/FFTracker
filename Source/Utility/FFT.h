@@ -43,7 +43,6 @@ public:
 	void FFTInv2Row(const MatCF &inM, MatCF &outM, bool scale = true);
 	// 2d matrix fast transose.
 	void Transpose(const MatF &inM, MatF &outM);
-	void TransposeInPlace(MatF &inM);
 	void Transpose(float *in, float *out, int rows, int cols);
 
 private:

@@ -1780,24 +1780,27 @@ void SaveToFile(const std::string &fileName, const MatCF &mat, ComplexMode mode)
 void PrintMat(const Mat &mat) {
 	if (mat.Size() == 0) return;
 	Eigen::Map<Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic>> egMat(mat.Data(), mat.Rows(), mat.Cols());
+	Eigen::IOFormat format(3, 0, ", ", "\n", "", "", "[", "]");
 	std::stringstream ss;
-	ss << egMat;
+	ss << egMat.format(format) << "\n";
 	Info("Matrix data: \n" + ss.str());
 }
 
 void PrintMat(const MatF &mat) {
 	if (mat.Size() == 0) return;
 	Eigen::Map<Eigen::MatrixXf> egMat(mat.Data(), mat.Rows(), mat.Cols());
+	Eigen::IOFormat format(3, 0, ", ", "\n", "", "", "[", "]");
 	std::stringstream ss;
-	ss << egMat;
+	ss << egMat.format(format) << "\n";
 	Info("Matrix data: \n" + ss.str());
 }
 
 void PrintMat(const MatCF &mat) {
 	if (mat.Size() == 0) return;
 	Eigen::Map<Eigen::MatrixXcf> egMat((std::complex<float>*)mat.Data(), mat.Rows(), mat.Cols());
+	Eigen::IOFormat format(3, 0, ", ", "\n", "", "", "[", "]");
 	std::stringstream ss;
-	ss << egMat;
+	ss << egMat.format(format) << "\n";
 	Info("Matrix data: \n" + ss.str());
 }
 

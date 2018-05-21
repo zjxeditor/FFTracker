@@ -386,16 +386,8 @@ void FFT::FFTInv2Row(const MatCF &inM, MatCF &outM, bool scale) {
 void FFT::Transpose(const MatF &inM, MatF &outM) {
 	int rows = inM.Rows();
 	int cols = inM.Cols();
-	outM.Reshape(rows, cols, false);
+	outM.Reshape(cols, rows, false);
 	Transpose(inM.Data(), outM.Data(), rows, cols);
-}
-
-void FFT::TransposeInPlace(MatF &inM) {
-	int rows = inM.Rows();
-	int cols = inM.Cols();
-	inM.rows = cols;
-	inM.cols = rows;
-	Transpose(inM.Data(), inM.Data(), rows, cols);
 }
 
 void FFT::Transpose(float *in, float *out, int rows, int cols) {
