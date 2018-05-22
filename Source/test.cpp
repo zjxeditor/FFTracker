@@ -168,6 +168,7 @@ static const cv::Scalar GTColor = cv::Scalar(0, 255, 0);
 static const cv::Scalar TrackColor = cv::Scalar(0, 0, 255);
 
 int main() {
+    SetThread();
     StartSystem();
 
     std::string basePath = "/Users/jxzhang/Desktop/HandData";

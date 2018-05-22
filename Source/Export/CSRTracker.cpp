@@ -19,12 +19,20 @@
 
 namespace CSRT {
 
+void SetThread(int count) {
+    if(count <= 0)
+        CSRT::SetThreadCount(NumSystemCores() + 1);
+    else {
+        if(count == 1) ++count;
+        CSRT::SetThreadCount(count);
+    }
+}
+
 void StartSystem(const char *logPath) {
     if (logPath == nullptr)
         CSRT::CreateLogger();
     else
         CSRT::CreateLogger(std::string(logPath));
-    CSRT::SetThreadCount(NumSystemCores() + 1);
     CSRT::ParallelInit();
     Eigen::setNbThreads(MaxThreadIndex());
     Eigen::initParallel();

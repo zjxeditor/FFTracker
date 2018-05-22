@@ -26,6 +26,8 @@ namespace CSRT {
 // Global Functions
 //
 
+// Must be called before "StartSystem" method.
+extern CSRT_API void SetThread(int count = 0);
 extern CSRT_API void StartSystem(const char *logPath = nullptr);
 extern CSRT_API void CloseSystem();
 
