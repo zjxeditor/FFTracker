@@ -87,6 +87,7 @@ struct CSRT_API CSRTrackerParams {
     int UpdateInterval;		// Update frame interval. Set to 0 or negative to disable background update mode.
     float PeakRatio;		// Specify the peak occupation ratio to calculate PSR. PeakSize = ResponseSize * PeakRatio * 2 + 1.
     float PSRThreshold;		// PSR threshold used for failure detection. 20.0 ~ 60.0 is indicates strong peaks.
+    bool UseScale;          // Whether use DSST to perform scale estimation.
 };
 
 struct CSRT_API Bounds {

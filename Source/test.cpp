@@ -209,7 +209,8 @@ int main() {
     params.ScaleStep = 1.02f;
     params.UpdateInterval = 1;
     params.PeakRatio = 0.1f;
-    params.PSRThreshold = 10.0f;
+    params.PSRThreshold = 20.0f;
+    params.UseScale = false;
 
     if(produceVideo) {
         std::string sequenceName = "zjx0_a1b0c1";

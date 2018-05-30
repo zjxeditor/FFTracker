@@ -89,6 +89,7 @@ CSRTrackerParams::CSRTrackerParams() {
     UpdateInterval = 4;
     PeakRatio = 0.1f;
     PSRThreshold = 15.0f;
+    UseScale = true;
 }
 
 

@@ -53,6 +53,7 @@ TrackerParams::TrackerParams() {
 	UpdateInterval = 4;
 	PeakRatio = 0.1f;
 	PSRThreshold = 15.0f;
+	UseScale = true;
 }
 
 //
@@ -505,7 +506,8 @@ void Tracker::SetReinitialize() {
 		backgroundUpdateFlag = false;
 		BackgroundWait();
 	}
-	dsst.SetReinitialize();
+	if(params.UseScale)
+	    dsst.SetReinitialize();
 	initialized = false;
 }
 
@@ -701,8 +703,9 @@ void Tracker::Initialize(const Mat& image, const Bounds2i& bb) {
 	}
 
 	// Initialize DSST.
-	dsst.Initialize(image, objbb, params.ScaleCount, params.ScaleStep, params.ScaleSigma,
-		params.ScaleLearnRate, params.ScaleMaxArea, templateSize);
+    if(params.UseScale)
+        dsst.Initialize(image, objbb, params.ScaleCount, params.ScaleStep, params.ScaleSigma,
+            params.ScaleLearnRate, params.ScaleMaxArea, templateSize);
 
 	ResetArenas(false);
 	ResetArenas(true);
@@ -727,7 +730,8 @@ bool Tracker::Update(const Mat& image, Bounds2i& bb, float &score) {
 	// Get translation.
 	objectCenter = EstimateNewPos(image, score);
 	// Get scale.
-	currentScaleFactor = dsst.GetScale(image, objectCenter);
+    if (params.UseScale)
+        currentScaleFactor = dsst.GetScale(image, objectCenter);
 
 	// Update bounding box.
 	Vector2i newSize = currentScaleFactor * orgTargetSize;
@@ -764,7 +768,8 @@ bool Tracker::Update(const Mat& image, Bounds2i& bb, float &score) {
 			filterMask = defaultMask;
 		}
 		UpdateFilter(image, filterMask);
-		dsst.Update(image, objectCenter);
+        if (params.UseScale)
+            dsst.Update(image, objectCenter);
 	}
 
 	// Return result.
@@ -781,7 +786,8 @@ void Tracker::StartBackgroundUpdate(const Mat& image) {
 	bk_scale = currentScaleFactor;
 	bk_filters = filters;
 	bk_filterWeights = filterWeights;
-	dsst.StartBackgroundUpdate();
+	if(params.UseScale)
+	    dsst.StartBackgroundUpdate();
 	backgroundUpdateFlag = true;
 }
 
@@ -789,7 +795,8 @@ void Tracker::FetchUpdateResult() {
 	if (!backgroundUpdateFlag) return;
 	filters = bk_filters;
 	filterWeights = bk_filterWeights;
-	dsst.FetchUpdateResult();
+	if(params.UseScale)
+	    dsst.FetchUpdateResult();
 	backgroundUpdateFlag = false;
 }
 
@@ -878,7 +885,8 @@ void Tracker::BackgroundUpdate() {
 	}, len, 2);
 
 	// Update DSST.
-	dsst.BackgroundUpdate(bk_image, bk_center);
+    if (params.UseScale)
+        dsst.BackgroundUpdate(bk_image, bk_center);
 
 	ResetArenas(true);
 }
