@@ -90,8 +90,8 @@ CSRTrackerParams::CSRTrackerParams() {
     PeakRatio = 0.1f;
     PSRThreshold = 15.0f;
     UseScale = true;
+    UseSmoother = true;
 }
-
 
 CSRTracker::CSRTracker(int rows, int cols, float scale, const CSRT::CSRTrackerParams &trackerParams)
         : rowNum(rows), colNum(cols), scaleFactor(scale), draw(false), red(0), green(0), blue(0), alpha(0.0f) {

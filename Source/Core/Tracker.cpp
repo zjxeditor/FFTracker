@@ -54,6 +54,7 @@ TrackerParams::TrackerParams() {
 	PeakRatio = 0.1f;
 	PSRThreshold = 15.0f;
 	UseScale = true;
+	UseSmoother = true;
 }
 
 //
@@ -707,6 +708,14 @@ void Tracker::Initialize(const Mat& image, const Bounds2i& bb) {
         dsst.Initialize(image, objbb, params.ScaleCount, params.ScaleStep, params.ScaleSigma,
             params.ScaleLearnRate, params.ScaleMaxArea, templateSize);
 
+	if(params.UseSmoother) {
+        int referScale = std::min(orgTargetSize.x, orgTargetSize.y);
+        TransformSmoothParamter params2D(0.15f, 0.15f, 0.15f, referScale * 0.05f, referScale * 0.5f);
+        TransformSmoothParamter params1D(0.15f, 0.15f, 0.15f, std::pow(params.ScaleStep, 1.5f), std::pow(params.ScaleStep, params.ScaleCount / 4.0f));
+        smoother1D.Init(params1D);
+        smoother2D.Init(params2D);
+	}
+
 	ResetArenas(false);
 	ResetArenas(true);
 }
@@ -729,9 +738,17 @@ bool Tracker::Update(const Mat& image, Bounds2i& bb, float &score) {
 
 	// Get translation.
 	objectCenter = EstimateNewPos(image, score);
+	if(params.UseSmoother) {
+        Vector2f filteredCenter = smoother2D.Update(Vector2f(objectCenter.x, objectCenter.y));
+        objectCenter.x = Clamp((int)filteredCenter.x, 1, image.Cols() - 2);
+        objectCenter.y = Clamp((int)filteredCenter.y, 1, image.Rows() - 2);
+	}
 	// Get scale.
-    if (params.UseScale)
+    if (params.UseScale) {
         currentScaleFactor = dsst.GetScale(image, objectCenter);
+        if(params.UseSmoother)
+        	currentScaleFactor = Clamp(smoother1D.Update(currentScaleFactor), dsst.GetMinScale(), dsst.GetMaxScale());
+    }
 
 	// Update bounding box.
 	Vector2i newSize = currentScaleFactor * orgTargetSize;

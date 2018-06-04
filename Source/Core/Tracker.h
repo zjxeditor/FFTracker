@@ -13,6 +13,7 @@
 #include "../CSRT.h"
 #include "../Utility/Geometry.h"
 #include "../Utility/Mat.h"
+#include "../Utility/Smoother.h"
 #include "DSST.h"
 #include "Segment.h"
 
@@ -70,6 +71,7 @@ struct TrackerParams {
 	float PeakRatio;		// Specify the peak occupation ratio to calculate PSR. PeakSize = ResponseSize * PeakRatio * 2 + 1.
 	float PSRThreshold;		// PSR threshold used for failure detection. 20.0 ~ 60.0 is indicates strong peaks.
     bool UseScale;          // Whether use DSST to perform scale estimation.
+    bool UseSmoother;       // Whether use smoother to filter the tracker outputs.
 }; 
 
 class Tracker {
@@ -177,6 +179,10 @@ private:
 
 	bool backgroundUpdateFlag;
 	int updateCounter;
+
+	// Smooth filter.
+    FilterDoubleExponential1D smoother1D;
+	FilterDoubleExponential2D smoother2D;
 };
 
 }	// namespace CSRT

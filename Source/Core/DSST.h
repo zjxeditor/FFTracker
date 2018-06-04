@@ -48,6 +48,10 @@ public:
 	void FetchUpdateResult();
 	void BackgroundUpdate(const Mat& image, const Vector2i& objectCenter);
 
+	// Get information
+	inline float GetMinScale() { return minScaleFactor; }
+	inline float GetMaxScale() { return maxScaleFactor; }
+
 private:
 	// Get image features used for DSST. Currently, only HOG features are applied.
 	void GetScaleFeatures(const Mat &img, MatF &feat, const Vector2i &pos, const Vector2i &orgSize, float currentScale,

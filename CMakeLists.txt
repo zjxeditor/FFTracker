@@ -108,7 +108,8 @@ set(CSRT_SOURCE
         Source/Core/Segment.cpp
         Source/Core/Tracker.cpp
         Source/Core/FeatureColorName.cpp
-        Source/Export/CSRTracker.cpp)
+        Source/Export/CSRTracker.cpp
+        Source/Utility/Smoother.cpp)
 
 set(CSRT_HEADERS
         Source/CSRT.h
@@ -123,7 +124,8 @@ set(CSRT_HEADERS
         Source/Core/Filter.h
         Source/Core/Segment.h
         Source/Core/Tracker.h
-        Source/Export/CSRTracker.h)
+        Source/Export/CSRTracker.h
+        Source/Utility/Smoother.h)
 
 include_directories(
         Source

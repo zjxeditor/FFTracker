@@ -174,7 +174,7 @@ int main() {
     std::string basePath = "/Users/jxzhang/Desktop/HandData";
     std::vector<std::string> sequenceNames = { "zjx0_a0b0c0", "zjx0_a0b0c1", "zjx0_a0b1c0", "zjx0_a0b1c1",
                                                "zjx0_a1b0c0" , "zjx0_a1b0c1" , "zjx0_a1b1c0" , "zjx0_a1b1c1" };
-    //std::vector<std::string> sequenceNames = { "zjx0_a1b0c1" };
+    //std::vector<std::string> sequenceNames = { "zjx0_a0b1c0" };
     float scale = 0.4f;
     bool produceVideo = false;
 
@@ -210,7 +210,8 @@ int main() {
     params.UpdateInterval = 1;
     params.PeakRatio = 0.1f;
     params.PSRThreshold = 20.0f;
-    params.UseScale = false;
+    params.UseScale = true;
+    params.UseSmoother = true;
 
     if(produceVideo) {
         std::string sequenceName = "zjx0_a1b0c1";

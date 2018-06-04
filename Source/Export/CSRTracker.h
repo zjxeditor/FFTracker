@@ -88,6 +88,7 @@ struct CSRT_API CSRTrackerParams {
     float PeakRatio;		// Specify the peak occupation ratio to calculate PSR. PeakSize = ResponseSize * PeakRatio * 2 + 1.
     float PSRThreshold;		// PSR threshold used for failure detection. 20.0 ~ 60.0 is indicates strong peaks.
     bool UseScale;          // Whether use DSST to perform scale estimation.
+    bool UseSmoother;       // Whether use smoother to filter the tracker outputs.
 };
 
 struct CSRT_API Bounds {
