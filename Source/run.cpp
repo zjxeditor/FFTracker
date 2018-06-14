@@ -16,38 +16,6 @@ int main() {
 	int radius = 80;
 
 	CSRTrackerParams params;
-	//params.UseHOG = true;
-	//params.UseCN = true;
-	//params.UseGRAY = true;
-	//params.UseRGB = false;
-	//params.NumHOGChannelsUsed = 18;
-	//params.UsePCA = false;
-	//params.PCACount = 20;
-	//params.UseChannelWeights = true;
-	//params.UseSegmentation = true;
-	//params.AdmmIterations = 4;
-	//params.Padding = 3.0f;
-	//params.TemplateSize = 200;
-	//params.GaussianSigma = 1.0f;
-	//params.WindowFunc = CSRTWindowType::Hann;
-	//params.ChebAttenuation = 45.0f;
-	//params.KaiserAlpha = 3.75f;
-	//params.WeightsLearnRate = 0.02f;
-	//params.FilterLearnRate = 0.02f;
-	//params.HistLearnRate = 0.04f;
-	//params.ScaleLearnRate = 0.025f;
-	//params.BackgroundRatio = 2.0f;
-	//params.HistogramBins = 16;
-	//params.PostRegularCount = 16;
-	//params.MaxSegmentArea = 1024.0f;
-	//params.ScaleCount = 33;
-	//params.ScaleSigma = 0.25f;
-	//params.ScaleMaxArea = 512.0f;
-	//params.ScaleStep = 1.02f;
-	//params.UpdateInterval = 1;
-	//params.PeakRatio = 0.1f;
-	//params.PSRThreshold = 12.0f;
-
 	params.UseHOG = true;
 	params.UseCN = true;
 	params.UseGRAY = true;
@@ -94,11 +62,14 @@ int main() {
 	}
 	int width = (int)cap.get(CV_CAP_PROP_FRAME_WIDTH);
 	int height = (int)cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+	int cameraFps = (int)cap.get(CV_CAP_PROP_FPS);
 	if (std::min(width, height) / 2 <= radius) {
 		std::cout << "please reduce radius" << std::endl;
 		CloseSystem();
 		return -1;
 	}
+	std::cout << "camera: " << width << " x " << height << ", fps " << cameraFps << std::endl;
+
 	cv::Mat cvImage;
 	cv::namedWindow(WindowName, 1);
 
@@ -117,6 +88,8 @@ int main() {
 		if (key == 27) break;
 
 		cap >> cvImage;
+		cv::flip(cvImage, cvImage, 1);
+
 		cv::cvtColor(cvImage, cvImage, CV_BGR2RGB);
 		if (cvImage.step != cvImage.cols * 3 || !cvImage.isContinuous()) {
 			std::cout << "Image data must be continous without any padding" << std::endl;
