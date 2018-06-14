@@ -239,20 +239,59 @@ void Tracker::CalculateResponse(const Mat& image, const std::vector<MatCF>& filt
 	}
 
 	int len = (int)Ffeatures.size();
-	MatCF respf(filter[0].Rows(), filter[0].Cols(), &arenas[ThreadIndex]);
-	MatCF tempf(&arenas[ThreadIndex]);
+	int width = Ffeatures[0].Cols();
+	int height = Ffeatures[0].Rows();
+	int supressRadius = 2;
+
 	if (params.UseChannelWeights) {
-		for (int i = 0; i < len; ++i) {
-			GFilter.MulSpectrums(Ffeatures[i], filter[i], tempf, true);
-			respf.CAdd(tempf, filterWeights[i], ComplexF(0.0f, 0.0f));
-		}
+	    std::vector<MatCF> respfs(len, MatCF(&arenas[ThreadIndex]));
+	    std::vector<MatF> resps(len, MatF(&arenas[ThreadIndex]));
+	    std::vector<float> detectWeights(len, 0.0f);
+	    float weightSum = 0.0f;
+
+	    ParallelFor([&](int64_t k) {
+            GFilter.MulSpectrums(Ffeatures[k], filter[k], respfs[k], true);
+            GFFT.FFTInv2(respfs[k], resps[k]);
+            float maxValue;
+            Vector2i maxLoc;
+            resps[k].MaxLoc(maxValue, maxLoc);
+            for(int y = maxLoc.y - supressRadius; y <= maxLoc.y + supressRadius; ++y) {
+                for(int x = maxLoc.x - supressRadius; x <= maxLoc.x + supressRadius; ++x) {
+                    int ny = Mod(y, height);
+                    int nx = Mod(x, width);
+                    *(resps[k].Data() + width * ny + nx) *= -1.0f;
+                }
+            }
+            float subMaxValue;
+            Vector2i subMaxLoc;
+            resps[k].MaxLoc(subMaxValue, subMaxLoc);
+            detectWeights[k] = std::max(1.0f - (subMaxValue / maxValue), 0.5f) * filterWeights[k];
+            for(int y = maxLoc.y - supressRadius; y <= maxLoc.y + supressRadius; ++y) {
+                for(int x = maxLoc.x - supressRadius; x <= maxLoc.x + supressRadius; ++x) {
+                    int ny = Mod(y, height);
+                    int nx = Mod(x, width);
+                    *(resps[k].Data() + width * ny + nx) *= -1.0f;
+                }
+            }
+	    }, len, 2);
+
+	    response.Reshape(height, width);
+        for (int i = 0; i < len; ++i) {
+            weightSum += detectWeights[i];
+        }
+        for (int i = 0; i < len; ++i) {
+            detectWeights[i] /= weightSum;
+            response.CAdd(resps[i], detectWeights[i], 0.0f);
+        }
 	} else {
+        MatCF respf(filter[0].Rows(), filter[0].Cols(), &arenas[ThreadIndex]);
+        MatCF tempf(&arenas[ThreadIndex]);
 		for (int i = 0; i < len; ++i) {
 			GFilter.MulSpectrums(Ffeatures[i], filter[i], tempf, true);
 			respf.CAdd(tempf, 1.0f, ComplexF(0.0f, 0.0f));
 		}
+        GFFT.FFTInv2(respf, response);
 	}
-	GFFT.FFTInv2(respf, response);
 }
 
 void Tracker::UpdateFilter(const Mat& image, const MatF& mask) {
@@ -445,7 +484,7 @@ Vector2i Tracker::EstimateNewPos(const Mat& image, float &score) const {
 	// Fit to bound.
 	newCenter.x = Clamp(newCenter.x, 0, imageSize.x - 1);
 	newCenter.y = Clamp(newCenter.y, 0, imageSize.y - 1);
-	
+
 	// Calculate PSR as score (Peak to Sidelobe Ratio)
 	int respCenterX = response.Cols() / 2;
 	int respCenterY = response.Rows() / 2;
