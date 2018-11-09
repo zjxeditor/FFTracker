@@ -5,18 +5,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Judge architecture
-if (NOT ARCHITECTURE)
-    message(WARNING "Architure not defined, set to system default.")
-    set(ARCHITECTURE "Default")
-endif ()
-if (ARCHITECTURE MATCHES "Android-*")
-    message(STATUS "Detect Android platform ${ARCHITECTURE}.")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti -fexceptions")
-    add_definitions(-D__ANDROID__)
-elseif(WIN32)
-    add_definitions(-DCSRT_EXPORT)
-endif ()
+# Add export definition
+add_definitions(-DCSRT_EXPORT)
 
 # Add sanitizers
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
@@ -48,6 +38,15 @@ endif ()
 if (NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Dirent")
     message(FATAL_ERROR "The Dirent library is missing!")
 endif ()
+if (NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/KinectV1")
+    message(FATAL_ERROR "The KinectV1 library is missing!")
+endif ()
+if (NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/KinectV2")
+    message(FATAL_ERROR "The KinectV2 library is missing!")
+endif ()
+if (NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/RealSense")
+    message(FATAL_ERROR "The RealSense library is missing!")
+endif ()
 
 # Add sanitizers and threads
 find_package(Sanitizers REQUIRED)
@@ -63,53 +62,73 @@ if (WIN32 AND ARCHITECTURE STREQUAL "Default")
 endif ()
 
 # Configure compiled third-party lobrary
-if (ARCHITECTURE STREQUAL "Android-arm")
-    include_directories(ThirdParty/Fftw3/Android/include)
-    link_directories(ThirdParty/Fftw3/Android/lib/arm)
-    set(FFTW3_LIBS fftw3f fftw3f_threads)
-elseif (ARCHITECTURE STREQUAL "Android-arm64")
-    include_directories(ThirdParty/Fftw3/Android/include)
-    link_directories(ThirdParty/Fftw3/Android/lib/arm64)
-    set(FFTW3_LIBS fftw3f fftw3f_threads)
-elseif (ARCHITECTURE STREQUAL "Android-x86")
-    include_directories(ThirdParty/Fftw3/Android/include)
-    link_directories(ThirdParty/Fftw3/Android/lib/x86)
-    set(FFTW3_LIBS fftw3f fftw3f_threads)
-elseif (ARCHITECTURE STREQUAL "Android-x86_64")
-    include_directories(ThirdParty/Fftw3/Android/include)
-    link_directories(ThirdParty/Fftw3/Android/lib/x86_64)
-    set(FFTW3_LIBS fftw3f fftw3f_threads)
-elseif (ARCHITECTURE STREQUAL "Default")
-    if (WIN32 AND MSVC)
-        include_directories(ThirdParty/Fftw3/Windows/include)
-        link_directories(ThirdParty/Fftw3/Windows/lib)
-        set(FFTW3_LIBS libfftw3f-3)
-    elseif (APPLE)
-        include_directories(ThirdParty/Fftw3/macOS/include)
-        link_directories(ThirdParty/Fftw3/macOS/lib)
-        set(FFTW3_LIBS fftw3f fftw3f_threads)
+if (WIN32 AND MSVC)
+    # FFTW
+    include_directories(ThirdParty/Fftw3/Windows/include)
+    link_directories(ThirdParty/Fftw3/Windows/lib)
+    set(FFTW3_LIBS libfftw3f-3)
+    # KinectV1
+    include_directories(ThirdParty/KinectV1/inc)
+    link_directories(ThirdParty/KinectV1/lib/amd64/)
+    set(KINECTV1_LIBS Kinect10)
+    # KinectV2
+    include_directories(ThirdParty/KinectV2/inc)
+    link_directories(ThirdParty/KinectV2/lib/x64)
+    set(KINECTV2_LIBS Kinect20)
+    # RealSense
+    include_directories(ThirdParty/RealSense/Windows/include)
+    if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+        link_directories(ThirdParty/RealSense/Windows/lib/release)
     else ()
-        message(FATAL_ERROR, "Unsupported platform.")
+        link_directories(ThirdParty/RealSense/Windows/lib/debug)
     endif ()
+    set(REALSENSE_LIBS realsense2)
+elseif (APPLE)
+    # FFTW
+    include_directories(ThirdParty/Fftw3/macOS/include)
+    link_directories(ThirdParty/Fftw3/macOS/lib)
+    set(FFTW3_LIBS fftw3f fftw3f_threads)
+    # RealSense
+    include_directories(ThirdParty/RealSense/macOS/include)
+    if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+        link_directories(ThirdParty/RealSense/macOS/lib/release)
+    else ()
+        link_directories(ThirdParty/RealSense/macOS/lib/debug)
+    endif ()
+    set(REALSENSE_LIBS realsense2.2)
 else ()
-    message(FATAL_ERROR "Unknown architecture.")
+    message(FATAL_ERROR, "Unsupported platform.")
 endif ()
 
 # Set the source files
+
+set(CSRT_CAMERA_SOURCE
+        Source/Camera/KinectService1.cpp
+        Source/Camera/KinectService2.cpp
+        Source/Camera/RealSense.cpp)
+
+SET(CSRT_CAMERA_HEADERS
+        Source/Camera/Camera.h
+        Source/Camera/KinectService1.h
+        Source/Camera/KinectService2.h
+        Source/Camera/RealSense.h)
+
 set(CSRT_SOURCE
         Source/CSRT.cpp
         Source/Utility/FFT.cpp
         Source/Utility/Mat.cpp
         Source/Utility/Memory.cpp
         Source/Utility/Parallel.cpp
+        Source/Utility/Smoother.cpp
         Source/Core/DSST.cpp
         Source/Core/FeaturesExtractor.cpp
         Source/Core/Filter.cpp
+        Source/Core/InfoProvider.cpp
+        Source/Core/Processor.cpp
         Source/Core/Segment.cpp
         Source/Core/Tracker.cpp
         Source/Core/FeatureColorName.cpp
-        Source/Export/CSRTracker.cpp
-        Source/Utility/Smoother.cpp)
+        Source/Export/CSRTracker.cpp)
 
 set(CSRT_HEADERS
         Source/CSRT.h
@@ -117,21 +136,38 @@ set(CSRT_HEADERS
         Source/Utility/Mat.h
         Source/Utility/Memory.h
         Source/Utility/Parallel.h
+        Source/Utility/Smoother.h
         Source/Utility/Geometry.h
         Source/Utility/StringPrint.h
         Source/Core/DSST.h
         Source/Core/FeaturesExtractor.h
         Source/Core/Filter.h
+        Source/Core/InfoProvider.h
+        Source/Core/Processor.h
         Source/Core/Segment.h
         Source/Core/Tracker.h
-        Source/Export/CSRTracker.h
-        Source/Utility/Smoother.h)
+        Source/Export/CSRTracker.h)
 
 include_directories(
         Source
+        Source/Camera
         Source/Utility
         Source/Core
         Source/Export)
+
+
+# Camera support library
+add_library(csrt_camera SHARED
+        ${CSRT_CAMERA_SOURCE}
+        ${CSRT_CAMERA_HEADERS})
+add_sanitizers(csrt_camera)
+if (WIN32 AND MSVC)
+    # Avoid a name clash when building on Visual Studio
+    set_target_properties(csrt_camera PROPERTIES OUTPUT_NAME libcsrt_camera)
+    target_link_libraries(csrt_camera ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS})
+else ()
+    target_link_libraries(csrt_camera ${REALSENSE_LIBS})
+endif ()
 
 # Main library
 add_library(csrt SHARED
@@ -141,20 +177,39 @@ add_sanitizers(csrt)
 if (WIN32 AND MSVC)
     # Avoid a name clash when building on Visual Studio
     set_target_properties(csrt PROPERTIES OUTPUT_NAME libcsrt)
+    target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+else ()
+    target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 endif ()
-target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 # Test executable
-if (ARCHITECTURE STREQUAL "Default")
-    find_package(OpenCV REQUIRED)
-    include_directories(${OpenCV_INCLUDE_DIRS})
-    add_executable(csrt_exe Source/test.cpp)
-    add_sanitizers(csrt_exe)
-    set_target_properties(csrt_exe PROPERTIES OUTPUT_NAME csrt)
-    target_link_libraries(csrt_exe csrt ${OpenCV_LIBS})
+find_package(OpenCV REQUIRED) # OpenCV is required for test cases.
+include_directories(${OpenCV_INCLUDE_DIRS})
 
-    add_executable(csrt_demo_exe Source/run.cpp)
-    add_sanitizers(csrt_demo_exe)
-    set_target_properties(csrt_demo_exe PROPERTIES OUTPUT_NAME csrt_demo)
-    target_link_libraries(csrt_demo_exe csrt ${OpenCV_LIBS})
-endif ()
+add_executable(test_camera Source/testCamera.cpp)
+add_sanitizers(test_camera)
+target_link_libraries(test_camera csrt csrt_camera ${OpenCV_LIBS})
+
+add_executable(test_eval_direct Source/testEvalDirect.cpp)
+add_sanitizers(test_eval_direct)
+target_link_libraries(test_eval_direct csrt csrt_camera ${OpenCV_LIBS})
+
+add_executable(test_features Source/testFeatures.cpp)
+add_sanitizers(test_features)
+target_link_libraries(test_features csrt csrt_camera ${OpenCV_LIBS})
+
+add_executable(test_run_direct Source/testRunDirect.cpp)
+add_sanitizers(test_run_direct)
+target_link_libraries(test_run_direct csrt csrt_camera ${OpenCV_LIBS})
+
+add_executable(test_run_direct_depth Source/testRunDirectDepth.cpp)
+add_sanitizers(test_run_direct_depth)
+target_link_libraries(test_run_direct_depth csrt csrt_camera ${OpenCV_LIBS})
+
+add_executable(test_run_video Source/testRunVideo.cpp)
+add_sanitizers(test_run_video)
+target_link_libraries(test_run_video csrt csrt_camera ${OpenCV_LIBS})
+
+add_executable(test_run_video_depth Source/testRunVideoDepth.cpp)
+add_sanitizers(test_run_video_depth)
+target_link_libraries(test_run_video_depth csrt csrt_camera ${OpenCV_LIBS})

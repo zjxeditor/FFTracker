@@ -44,7 +44,7 @@ public:
 	void BackProject(const Mat &inM, MatF &outM) const;
 
 private:
-	inline float KernelProfileEpanechnikov(float x) const {
+	float KernelProfileEpanechnikov(float x) const {
 		return (x <= 1.0f) ? (2.0f / Pi)*(1 - x) : 0.0f;
 	}
 
@@ -68,7 +68,7 @@ private:
 	static void RegularizeSegmentation(const MatF &inForePost, const MatF &inBackPost, MatF &inForePrior, MatF &inBackPrior,
 		MatF &outForePost, MatF &outBackPost, int maxIter);
 
-	static inline float Gaussian(float x2, float y2, float sigma2) {
+	static float Gaussian(float x2, float y2, float sigma2) {
 		return exp(-(x2 + y2) / (2 * sigma2)) / (2 * Pi*sigma2);
 	}
 

@@ -32,6 +32,7 @@
 #include <exception>
 #include <chrono>
 #include <complex>
+#include <cstring>
 
 #if defined(_MSC_VER)
 #include <float.h>
@@ -89,15 +90,8 @@ extern std::shared_ptr<spdlog::logger> Logger;
 // Create logger.
 inline void CreateLogger(std::string filePath = "") {
 	try {
-		if (filePath.empty()) {
-#if defined(__ANDROID__)
-            Logger = spdlog::android_logger("csrt");
-#else
-			Logger = spdlog::stdout_color_mt("console");
-#endif
-		}
-		else
-			Logger = spdlog::basic_logger_mt("file", filePath);
+		if (filePath.empty()) Logger = spdlog::stdout_color_mt("console");
+		else Logger = spdlog::basic_logger_mt("file", filePath);
 	} catch(const spdlog::spdlog_ex &ex) {
 		throw std::runtime_error(ex.what());
 	}

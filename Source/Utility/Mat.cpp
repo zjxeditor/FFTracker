@@ -1113,6 +1113,23 @@ void MatF::Resize(MatF &dest, int tr, int tc) const {
 	ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
 }
 
+void MatF::Resize(MatF &dest, float sr, float sc, int channels) const {
+	if (cols % channels != 0)
+		Critical("MatF::Resize: cannot resize for target channel number.");
+	int ocols = cols / channels;
+	int trows = (int)(rows * sr);
+	int tcols = (int)(ocols * sc);
+	dest.Reshape(trows, tcols * channels, false);
+	ResizeBilinear(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
+}
+
+void MatF::Resize(MatF &dest, int tr, int tc, int channels) const {
+	if (cols % channels != 0)
+		Critical("MatF::Resize: cannot resize for target channel number.");
+	dest.Reshape(tr, tc * channels, false);
+	ResizeBilinear(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
+}
+
 void MatF::ToMat(Mat& dest, int channels, float scale, float offset) const {
 	if (cols % channels != 0)
 		Warning("MatF::ToMat: channels number may be wrong, cannot be divided by cols.");
