@@ -63,6 +63,7 @@ private:
 	float maxDepth;		// Maximum depth in meters.	
 	float minDepth;		// Minimum depth in meters.
 
+	bool pipeStart;
 	rs2::pipeline pipe;
 	rs2::pointcloud pc;
 	rs2_extrinsics depth2Color;

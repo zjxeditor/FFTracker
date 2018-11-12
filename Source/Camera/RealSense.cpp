@@ -20,6 +20,7 @@ RealSense::RealSense(bool dpPostProcessing, int dimReduce) :
 	depthScale(0.0f),
 	maxDepth(0.0f),
 	minDepth(0.0f),
+	pipeStart(false),
 	postProcessing(dpPostProcessing),
 	dec_filter_step(dimReduce),
 	colorBuffer(nullptr),
@@ -29,14 +30,20 @@ RealSense::RealSense(bool dpPostProcessing, int dimReduce) :
 	enableDepth(false) { }
 
 RealSense::~RealSense() {
-	pipe.stop();
+    if(pipeStart) {
+        pipe.stop();
+        pipeStart = false;
+    }
 	colorBuffer = nullptr;
 	depthBuffer = nullptr;
 	pointCloud = nullptr;
 }
 
 void RealSense::Release() {
-	pipe.stop();
+    if(pipeStart) {
+        pipe.stop();
+        pipeStart = false;
+    }
 	colorBuffer = nullptr;
 	depthBuffer = nullptr;
 	pointCloud = nullptr;
@@ -58,7 +65,7 @@ bool RealSense::Initialize(bool color, bool depth) {
 	color_format = RS2_FORMAT_BGRA8;
 	depth_format = RS2_FORMAT_Z16;
 	minDepth = 0.11f;
-	maxDepth = 2.0f;
+	maxDepth = 3.0f;
 
 	// Configure RealSense device
 	rs2::context ctx;
@@ -68,18 +75,18 @@ bool RealSense::Initialize(bool color, bool depth) {
 	}
 	rs2::device device = devices.front();
 	std::string serial = device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
-	if (device.is<rs400::advanced_mode>()) {
-		auto advanced_device = device.as<rs400::advanced_mode>();
-		// Check if advanced-mode is enabled
-		if (!advanced_device.is_enabled()) {
-			// Enable advanced-mode
-			advanced_device.toggle_advanced_mode(true);
-		}
-		auto depthTable = advanced_device.get_depth_table();
-		depthTable.depthClampMax = (int)(maxDepth * depthTable.depthUnits);
-		depthTable.depthClampMin = (int)(minDepth * depthTable.depthUnits);
-		advanced_device.set_depth_table(depthTable);
-	}
+//	if (device.is<rs400::advanced_mode>()) {
+//		auto advanced_device = device.as<rs400::advanced_mode>();
+//		// Check if advanced-mode is enabled
+//		if (!advanced_device.is_enabled()) {
+//			// Enable advanced-mode
+//			advanced_device.toggle_advanced_mode(true);
+//		}
+//		auto depthTable = advanced_device.get_depth_table();
+//		depthTable.depthClampMax = (int)(maxDepth * depthTable.depthUnits);
+//		depthTable.depthClampMin = (int)(minDepth * depthTable.depthUnits);
+//		advanced_device.set_depth_table(depthTable);
+//	}
 
 	// Configure RealSense pipeline
 	rs2::config cfg;
@@ -87,6 +94,7 @@ bool RealSense::Initialize(bool color, bool depth) {
 	if (enableColor) cfg.enable_stream(RS2_STREAM_COLOR, -1, colorWidth, colorHeight, color_format, fps);
 	if (enableDepth) cfg.enable_stream(RS2_STREAM_DEPTH, -1, depthWidth, depthHeight, depth_format, fps);
 	auto profile = pipe.start(cfg);
+	pipeStart = true;
 	
 	// Control the depth sensor
 	if (enableDepth) {
@@ -98,7 +106,7 @@ bool RealSense::Initialize(bool color, bool depth) {
 			auto range = depthSensor.get_option_range(RS2_OPTION_LASER_POWER);
 			depthSensor.set_option(RS2_OPTION_LASER_POWER, range.max); // Set max power
 		}
-		rs2_rs400_visual_preset preset = RS2_RS400_VISUAL_PRESET_DEFAULT;
+		rs2_rs400_visual_preset preset = RS2_RS400_VISUAL_PRESET_HAND;
 		if(depthSensor.supports(RS2_OPTION_VISUAL_PRESET)) {
 			depthSensor.set_option(RS2_OPTION_VISUAL_PRESET, preset);
 		}
@@ -166,7 +174,7 @@ void RealSense::Tick() {
 			if (dec_filter_step > 1) depth_frame = dec_filter.process(depth_frame);
 			depth_frame = depth2disparity_filter.process(depth_frame);
 			depth_frame = spat_filter.process(depth_frame);
-			depth_frame = temp_filter.process(depth_frame);
+			//depth_frame = temp_filter.process(depth_frame);
 			depth_frame = disparity2depth_filter.process(depth_frame);
 		}
 		ProcessDepth(reinterpret_cast<uint16_t*>(const_cast<void*>(depth_frame.get_data())));
@@ -192,16 +200,16 @@ void RealSense::ProcessDepth(uint16_t* buffer) {
 		return;
 	}
 
-	int len = depthWidth * depthHeight;
-	float *dst = depthBuffer;
-	float scale = 1.0f / (maxDepth - minDepth);
-	float offset = -minDepth * scale;
-	memcpy(&depthCacheBuffer[0], buffer, len * sizeof(uint16_t));
-	for (int i = 0; i < len; ++i) {
-		*(dst++) = (*(buffer++)) * depthScale * scale + offset;
-	}
+//	int len = depthWidth * depthHeight;
+//	float *dst = depthBuffer;
+//	float scale = 1.0f / (maxDepth - minDepth);
+//	float offset = -minDepth * scale;
+//	memcpy(&depthCacheBuffer[0], buffer, len * sizeof(uint16_t));
+//	for (int i = 0; i < len; ++i) {
+//		*(dst++) = (*(buffer++)) * depthScale * scale + offset;
+//	}
 
-	/*uint16_t* dst0 = &depthCacheBuffer[0];
+	uint16_t* dst0 = &depthCacheBuffer[0];
 	float* dst1 = depthBuffer;
 	int len = depthWidth * depthHeight;
 	float scale = 1.0f / (maxDepth - minDepth);
@@ -216,7 +224,7 @@ void RealSense::ProcessDepth(uint16_t* buffer) {
 		++buffer;
 		++dst0;
 		++dst1;
-	}*/
+	}
 }
 
 void RealSense::MapColor2Depth(const CameraPoint2* colorPoints, CameraPoint2* depthPoints, int count) {

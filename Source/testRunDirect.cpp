@@ -57,7 +57,7 @@ int main() {
 
 	float scale = 0.5f;
 	int radius = 50;
-	int targetCount = 2;
+	int targetCount = 1;
 
 	TrackerParams params;
 	//params.UseHOG = true;
@@ -210,6 +210,7 @@ int main() {
 			}
 		}
 
+		cv::flip(cvImage, cvImage, 1);
 		cv::imshow(WindowName, cvImage);
 	}
 

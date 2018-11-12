@@ -64,6 +64,7 @@ int main() {
 		}*/
 
 		memcpy(cvFeatureImage.data, feature.Data(), feature.Size() * sizeof(uint8_t));
+		cv::flip(cvFeatureImage, cvFeatureImage, 1);
 		cv::imshow(FeatureWindowName, cvFeatureImage);
 	}
 

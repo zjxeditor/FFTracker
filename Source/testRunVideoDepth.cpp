@@ -163,6 +163,7 @@ int main() {
 				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, TrackColor, 2);
 			}
 			startTime = TimeNow();
+			cv::flip(cvImage, cvImage, 1);
 			outputVideo.write(cvImage);
 		} else if (started) {
 			std::vector<Bounds2i> outputbbs;
@@ -175,6 +176,7 @@ int main() {
 			}
 			//std::cout << score << std::endl;
 			++frames;
+			cv::flip(cvImage, cvImage, 1);
 			outputVideo.write(cvImage);
 		} else {
 			for (int i = 0; i < targetCount; ++i) {
@@ -183,6 +185,7 @@ int main() {
 				int newRadius = std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2;
 				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, WaitColor, 2);
 			}
+			cv::flip(cvImage, cvImage, 1);
 		}
 
 		cv::imshow(WindowName, cvImage);
