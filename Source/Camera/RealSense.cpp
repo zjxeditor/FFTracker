@@ -103,7 +103,9 @@ bool RealSense::Initialize(bool color, bool depth) {
 			if(current.get_stream_profiles()[0].stream_type() != RS2_STREAM_COLOR) continue;
 			if(current.supports(RS2_OPTION_GAIN)) {
 				auto range = current.get_option_range(RS2_OPTION_GAIN);
-				current.set_option(RS2_OPTION_GAIN, range.max);
+				// issue: on macOS, cannot get the correct range value
+				//current.set_option(RS2_OPTION_GAIN, range.max);
+                current.set_option(RS2_OPTION_GAIN, 128.0f);
 			}
 		}
 	}
