@@ -40,24 +40,24 @@ inline void CloseSystem() {
 }
 
 inline  void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, int cols) {
-    ParallelFor([&](int64_t y) {
-        const unsigned char *ps = srcData + y * cols * 4;
-        unsigned char *pd = dstData + y * cols * 3;
-        for (int i = 0; i < cols; ++i) {
-            *(pd++) = *(ps++);
-            *(pd++) = *(ps++);
-            *(pd++) = *(ps++);
-            ++ps;
-        }
-    }, rows, 32);
+	ParallelFor([&](int64_t y) {
+		const unsigned char *ps = srcData + y * cols * 4;
+		unsigned char *pd = dstData + y * cols * 3;
+		for (int i = 0; i < cols; ++i) {
+			*(pd++) = *(ps++);
+			*(pd++) = *(ps++);
+			*(pd++) = *(ps++);
+			++ps;
+		}
+	}, rows, 32);
 }
 
 int main() {
 	StartSystem();
 
-	float scale = 0.5f;
-	int radius = 50;
-	int targetCount = 1;
+	float scale = 0.8f;
+	int radius = 60;
+	int targetCount = 2;
 
 	TrackerParams params;
 	//params.UseHOG = true;
@@ -127,7 +127,7 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 0;
+	params.UpdateInterval = 1;
 	params.UseScale = false;
 	params.UseSmoother = true;
 
@@ -183,7 +183,7 @@ int main() {
 		colorFrame.Resize(postFrame, postHeight, postWidth);
 		memcpy(cvImage.data, postFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
 
-		if(!started && Duration(startTime, TimeNow()) > 5e6) {
+		if (!started && Duration(startTime, TimeNow()) > 5e6) {
 			started = true;
 			pTracker->Initialize(postFrame, initbbs);
 			for (int i = 0; i < targetCount; ++i) {
@@ -195,7 +195,7 @@ int main() {
 		} else if (started) {
 			std::vector<Bounds2i> outputbbs;
 			pTracker->Update(postFrame, outputbbs);
-			for(int i = 0; i < targetCount; ++i) {
+			for (int i = 0; i < targetCount; ++i) {
 				int centerX = (outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2;
 				int centerY = (outputbbs[i].pMin.y + outputbbs[i].pMax.y) / 2;
 				int newRadius = std::max(outputbbs[i].pMax.x - outputbbs[i].pMin.x, outputbbs[i].pMax.y - outputbbs[i].pMin.y) / 2;

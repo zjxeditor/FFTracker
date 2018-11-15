@@ -95,6 +95,18 @@ bool RealSense::Initialize(bool color, bool depth) {
 	if (enableDepth) cfg.enable_stream(RS2_STREAM_DEPTH, -1, depthWidth, depthHeight, depth_format, fps);
 	auto profile = pipe.start(cfg);
 	pipeStart = true;
+
+	// Control the color sensor
+	if(enableColor) {
+		auto sensors = profile.get_device().query_sensors();
+		for(auto &current : sensors) {
+			if(current.get_stream_profiles()[0].stream_type() != RS2_STREAM_COLOR) continue;
+			if(current.supports(RS2_OPTION_GAIN)) {
+				auto range = current.get_option_range(RS2_OPTION_GAIN);
+				current.set_option(RS2_OPTION_GAIN, range.max);
+			}
+		}
+	}
 	
 	// Control the depth sensor
 	if (enableDepth) {

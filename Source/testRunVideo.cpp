@@ -55,7 +55,7 @@ inline  void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, 
 int main() {
 	StartSystem();
 
-	float scale = 0.5f;
+	float scale = 0.8f;
 	int radius = 60;
 	int targetCount = 2;
 
@@ -63,16 +63,16 @@ int main() {
 	params.UseHOG = true;
 	params.UseCN = true;
 	params.UseGRAY = true;
-	params.UseRGB = false;
-	params.UseDepthHOG = false;
+	params.UseRGB = true;
+	params.UseDepthHOG = true;
 	params.UseDepthGray = true;
 	params.UseDepthNormal = true;
 	params.UseDepthHON = true;
-	params.UseDepthNormalHOG = false;
+	params.UseDepthNormalHOG = true;
 	params.NumHOGChannelsUsed = 18;
 	params.PCACount = 0;
 	params.UseNormalForSegment = true;
-	params.UseNormalForDSST = false;
+	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
 	params.CellSize = 4;
@@ -95,8 +95,8 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 0;
-	params.UseScale = true;
+	params.UpdateInterval = 1;
+	params.UseScale = false;
 	params.UseSmoother = true;
 
 	// Configure camera
@@ -144,7 +144,7 @@ int main() {
 
 	// Create video writer
 	cv::VideoWriter outputVideo;
-	outputVideo.open("track.avi", CV_FOURCC('M', 'J', 'P', 'G'), 30, cv::Size(postWidth, postHeight), true);
+	outputVideo.open("trackRGB.avi", CV_FOURCC('M', 'J', 'P', 'G'), 20, cv::Size(postWidth, postHeight), true);
 
 	// Main loop.
 	bool started = false;

@@ -43,7 +43,7 @@ int main() {
 	StartSystem();
 
 	float scale = 1.0f;
-	int radius = 45;
+	int radius = 35;
 	int targetCount = 2;
 
 	TrackerParams params;

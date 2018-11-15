@@ -43,8 +43,8 @@ int main() {
 	StartSystem();
 
 	float scale = 1.0f;
-	int radius = 45;
-	int targetCount = 1;
+	int radius = 40;
+	int targetCount = 2;
 
 	TrackerParams params;
 	params.UseHOG = true;
