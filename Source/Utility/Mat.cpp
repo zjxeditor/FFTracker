@@ -393,6 +393,17 @@ Mat::~Mat() {
 		FreeAligned(data);
 }
 
+void Mat::ManageExternalData(uint8_t *sourceData, int rowNum, int colNum, int channelNum) {
+    if (data && !arena)
+        FreeAligned(data);
+    data = sourceData;
+    arena = &GImgLoadArena;
+    rows = rowNum;
+    cols = colNum;
+    channels = channelNum;
+    size = rows * cols * channels;
+}
+
 float Mat::Mean() const {
 	float sum = 0.0f;
 	const uint8_t *ptemp = data;
@@ -946,6 +957,15 @@ MatF::~MatF() {
 	if (data && !arena) FreeAligned(data);
 }
 
+void MatF::ManageExternalData(float *sourceData, int rowNum, int colNum) {
+    if (data && !arena) FreeAligned(data);
+    data = sourceData;
+    rows = rowNum;
+    cols = colNum;
+    size = rows * cols;
+    arena = &GImgLoadArena;
+}
+
 float MatF::Mean() const {
 	float sum = 0.0f;
 	const float *ptemp = data;
@@ -1473,6 +1493,15 @@ MatCF &MatCF::Reshape(int rowNum, int colNum, bool zero) {
 
 MatCF::~MatCF() {
 	if (data && !arena) FreeAligned(data);
+}
+
+void MatCF::ManageExternalData(CSRT::complex<float> *sourceData, int rowNum, int colNum) {
+    if (data && !arena) FreeAligned(data);
+    data = sourceData;
+    rows = rowNum;
+    cols = colNum;
+    size = rows * cols;
+    arena = &GImgLoadArena;
 }
 
 ComplexF MatCF::Mean() const {

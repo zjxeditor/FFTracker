@@ -86,6 +86,9 @@ public:
 	Mat &Reshape(int rowNum, int colNum, int channelNum, bool zero = true);
 	~Mat();
 
+	// Take control the external data. Just represent external data as Mat.
+	void ManageExternalData(uint8_t *sourceData, int rowNum, int colNum, int channelNum);
+
 	inline uint8_t Get(int row, int col, int channel) const {
 		return *(data + row * cols * channels + col * channels + channel);
 	}
@@ -160,6 +163,9 @@ public:
 	MatF &Reshape(int rowNum, int colNum, bool zero = true);
 	~MatF();
 
+    // Take control the external data. Just represent external data as MatF.
+    void ManageExternalData(float *sourceData, int rowNum, int colNum);
+
 	inline float Get(int row, int col) const {
 		return *(data + row * cols + col);
 	}
@@ -226,6 +232,9 @@ public:
 	MatCF &operator=(MatCF &&m) noexcept;
 	MatCF &Reshape(int rowNum, int colNum, bool zero = true);
 	~MatCF();
+
+    // Take control the external data. Just represent external data as MatCF.
+    void ManageExternalData(ComplexF *sourceData, int rowNum, int colNum);
 
 	inline ComplexF Get(int row, int col) const {
 		return *(data + row * cols + col);

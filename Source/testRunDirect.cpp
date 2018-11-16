@@ -39,7 +39,7 @@ inline void CloseSystem() {
 	CSRT::ClearLogger();
 }
 
-inline  void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, int cols) {
+inline void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, int cols) {
 	ParallelFor([&](int64_t y) {
 		const unsigned char *ps = srcData + y * cols * 4;
 		unsigned char *pd = dstData + y * cols * 3;
