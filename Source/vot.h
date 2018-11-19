@@ -512,7 +512,8 @@ const char* VOT_PREFIX(vot_frame)() {
         trax_image_release(&_trax_image);
 
         return _trax_image_buffer;
-
+    } else {
+        throw std::runtime_error("trax internal error.");
     }
 }
 
