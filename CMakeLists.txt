@@ -57,7 +57,7 @@ include_directories(
         ThirdParty/Eigen
         ThirdParty/Stb
         ThirdParty/Spdlog/include)
-if (WIN32 AND ARCHITECTURE STREQUAL "Default")
+if (WIN32)
     include_directories(ThirdParty/Dirent)
 endif ()
 
@@ -162,8 +162,6 @@ add_library(csrt_camera SHARED
         ${CSRT_CAMERA_HEADERS})
 add_sanitizers(csrt_camera)
 if (WIN32 AND MSVC)
-    # Avoid a name clash when building on Visual Studio
-    set_target_properties(csrt_camera PROPERTIES OUTPUT_NAME libcsrt_camera)
     target_link_libraries(csrt_camera ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS})
 else ()
     target_link_libraries(csrt_camera ${REALSENSE_LIBS})
@@ -174,13 +172,7 @@ add_library(csrt SHARED
         ${CSRT_SOURCE}
         ${CSRT_HEADERS})
 add_sanitizers(csrt)
-if (WIN32 AND MSVC)
-    # Avoid a name clash when building on Visual Studio
-    set_target_properties(csrt PROPERTIES OUTPUT_NAME libcsrt)
-    target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
-else ()
-    target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
-endif ()
+target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 # Test executable
 find_package(OpenCV REQUIRED) # OpenCV is required for test cases.

@@ -11,7 +11,6 @@
 #define CSRT_CSRTRACKER_H
 
 #ifdef _WIN32
-#define CSRT_EXPORT
 #ifdef CSRT_EXPORT
 #define CSRT_API __declspec(dllexport)
 #else
