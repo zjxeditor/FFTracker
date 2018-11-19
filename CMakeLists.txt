@@ -213,3 +213,36 @@ target_link_libraries(test_run_video csrt csrt_camera ${OpenCV_LIBS})
 add_executable(test_run_video_depth Source/testRunVideoDepth.cpp)
 add_sanitizers(test_run_video_depth)
 target_link_libraries(test_run_video_depth csrt csrt_camera ${OpenCV_LIBS})
+
+
+# vot integration
+
+if (NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Trax")
+    message(FATAL_ERROR "The Trax library is missing!")
+endif ()
+
+if (WIN32 AND MSVC)
+    # Trax
+    include_directories(ThirdParty/Trax/Windows/include)
+    link_directories(ThirdParty/Trax/Windows/lib)
+    if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+        set(TRAX_LIBS trax_client trax)
+    else ()
+        set(TRAX_LIBS trax_clientd traxd)
+    endif ()
+elseif (APPLE)
+    # Trax
+    include_directories(ThirdParty/Trax/macOS/include)
+    if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+        link_directories(ThirdParty/Trax/macOS/lib/release)
+    else ()
+        link_directories(ThirdParty/Trax/macOS/lib/debug)
+    endif ()
+    set(TRAX_LIBS trax)
+else ()
+    message(FATAL_ERROR, "Unsupported platform.")
+endif ()
+
+add_executable(vot_interface Source/votInterface.cpp Source/vot.h)
+add_sanitizers(vot_interface)
+target_link_libraries(vot_interface csrt ${TRAX_LIBS})

@@ -209,8 +209,13 @@ int main() {
 	params.UseRGB = false;
 	params.UseDepthHOG = true;
 	params.UseDepthGray = true;
-	params.NumHOGChannelsUsed = 18;
+	params.UseDepthNormal = true;
+	params.UseDepthHON = true;
+	params.UseDepthNormalHOG = true;
+	params.NumHOGChannelsUsed = 31;
 	params.PCACount = 0;
+	params.UseNormalForSegment = true;
+	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
 	params.CellSize = 4;
