@@ -48,7 +48,6 @@ public:
 	// Coordinate mappers
 	void MapDepth2Color(const CameraPoint2* depthPoints, CameraPoint2* colorPoints, int count) override;
 	void MapColor2Depth(const CameraPoint2* colorPoints, CameraPoint2* depthPoints, int count) override;
-	
 
 private:
 	// Kinect data processing

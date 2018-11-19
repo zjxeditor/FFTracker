@@ -105,7 +105,7 @@ endif ()
 set(CSRT_CAMERA_SOURCE
         Source/Camera/KinectService1.cpp
         Source/Camera/KinectService2.cpp
-        Source/Camera/RealSense.cpp)
+        Source/Camera/RealSense.cpp Source/Camera/Camera.cpp)
 
 SET(CSRT_CAMERA_HEADERS
         Source/Camera/Camera.h

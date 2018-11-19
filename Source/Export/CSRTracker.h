@@ -97,7 +97,7 @@ enum class CSRTrackMode {
     Depth = 1
 };
 
-struct CSRT_API Bounds {
+struct Bounds {
     Bounds() : x0(0), y0(0), x1(0), y1(0) {}
     Bounds(int xx0, int yy0, int w, int h) : x0(xx0), y0(yy0), x1(xx0 + w), y1(yy0 + h) {}
 
@@ -106,6 +106,17 @@ struct CSRT_API Bounds {
     int x1;
     int y1;
 };
+
+
+//
+// Build in image loader
+//
+
+// Load image from file path. You cannot free the 'data' pointer manually.
+// Call 'FinishLoadImage' will free all the current loading image data.
+CSRT_API bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data);
+CSRT_API void FinishLoadImage();
+
 
 //
 // Global Classes

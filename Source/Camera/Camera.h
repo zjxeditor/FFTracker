@@ -10,6 +10,16 @@
 #ifndef CSRT_CAMERA_H
 #define CSRT_CAMERA_H
 
+#ifdef _WIN32
+#ifdef CSRT_EXPORT
+#define CSRT_API __declspec(dllexport)
+#else
+#define CSRT_API __declspec(dllimport)
+#endif
+#else
+#define CSRT_API
+#endif
+
 #include <vector>
 #include <cstdint>
 
@@ -70,6 +80,23 @@ public:
 	// Map from color frame to depth frame.
 	virtual void MapColor2Depth(const CameraPoint2 *colorPoints, CameraPoint2 *depthPoints, int count) = 0;
 };
+
+#ifdef _WIN32
+enum class CameraType {
+    RealSense = 0,
+    KinectV1 = 1,
+    KinectV2 = 2,
+};
+#else
+enum class CameraType {
+    RealSense = 0
+};
+#endif
+
+// Create a camera service of specific type. 'dpPostProcessing' and 'dimReduce' only used for RealSense device.
+// If 'dpPostProcessing' is set to 'true', the depth image will pass a post processing stage to remove noise.
+// The final depth image size will be reduces by 'dimReduce' times.
+CSRT_API std::unique_ptr<CameraService> CreateCameraService(CameraType type, bool dpPostProcessing = true, int dimReduce = 2);
 
 #ifdef _WIN32
 // Safe release for interfaces

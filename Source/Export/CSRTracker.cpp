@@ -99,6 +99,20 @@ CSRTrackerParams::CSRTrackerParams() {
     UseSmoother = true;
 }
 
+bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data) {
+    if(path == nullptr) return false;
+    Mat img(path);
+    width = img.Cols();
+    height = img.Rows();
+    channels = img.Channels();
+    *data = img.Data();
+    return true;
+}
+
+void FinishLoadImage() {
+    GImageMemoryArena.ResetImgLoadArena();
+}
+
 CSRTracker::CSRTracker(int rows, int cols, int targetCount, CSRTrackMode mode, const CSRT::CSRTrackerParams &trackerParams)
         : rowNum(rows), colNum(cols), targets(targetCount) {
     TrackerParams params;
