@@ -78,26 +78,26 @@ private:
 	int count;
 };
 
-extern thread_local int ThreadIndex;
+extern CSRT_API thread_local int ThreadIndex;
 
 // Set the total thread count. Note, for computation intensive tasks, the best choice is
 // the CPU core number. However, we can have each CPU core own multi threads for IO intensive tasks.
-void SetThreadCount(int count);
+CSRT_API void SetThreadCount(int count);
 
-int MaxThreadIndex();
-int NumSystemCores();
+CSRT_API int MaxThreadIndex();
+CSRT_API int NumSystemCores();
 
 // Call "ParallelInit" method and "ParallelCleanup" once just at application start and end.
-void ParallelInit();
-void ParallelCleanup();
+CSRT_API void ParallelInit();
+CSRT_API void ParallelCleanup();
 
 // Concurrency processing. Parallel call methods can be safely nested.
-void ParallelFor(std::function<void(int64_t)> func, int64_t count, int chunkSize = 1);
-void ParallelFor2D(std::function<void(Vector2i)> func, const Vector2i &count);
+CSRT_API void ParallelFor(std::function<void(int64_t)> func, int64_t count, int chunkSize = 1);
+CSRT_API void ParallelFor2D(std::function<void(Vector2i)> func, const Vector2i &count);
 
 // Background processing.
-void BackgroundProcess(std::function<void()> func);
-void BackgroundWait();
+CSRT_API void BackgroundProcess(std::function<void()> func);
+CSRT_API void BackgroundWait();
 
 }	// namespace CSRT
 

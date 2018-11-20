@@ -6,6 +6,7 @@
 #define NOMINMAX
 #pragma once
 #endif
+
 #ifndef CSRT_INFO_PROVIDER_H
 #define CSRT_INFO_PROVIDER_H
 
@@ -27,7 +28,7 @@ enum class WindowType {
 
 class Processor;
 
-class InfoProvider {
+class CSRT_API InfoProvider {
 	friend class Processor;
 
 public:
@@ -132,7 +133,7 @@ private:
 };
 
 // Global Feature Provider
-extern InfoProvider GInfoProvider;
+extern CSRT_API InfoProvider GInfoProvider;
 
 }	// namespace CSRT
 

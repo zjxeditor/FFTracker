@@ -17,7 +17,7 @@
 namespace CSRT {
 
 // Thread safe fft helper.
-class FFT {
+class CSRT_API FFT {
 public:
 	FFT();
 	~FFT();
@@ -62,7 +62,7 @@ private:
 };
 
 // Global FFT helper.
-extern FFT GFFT;
+extern CSRT_API FFT GFFT;
 
 }	// namespace CSRT
 

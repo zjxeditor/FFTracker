@@ -1,22 +1,17 @@
 // Different camera device test.
 
+#include "Camera/Camera.h"
 #include <opencv2/opencv.hpp>
 #include <memory>
-
-#include "Camera/KinectService1.h"
-#include "Camera/KinectService2.h"
-#include "Camera/RealSense.h"
-#include "CSRT.h"
 
 using namespace CSRT;
 
 int main() {
 	// Create logger
-	CSRT::CreateLogger();
 	float colorScale = 1.0f;
 
 	// Configure camera
-	std::unique_ptr<CameraService> camera(new RealSense(true, 2));
+	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
 	if(!camera->Initialize(true, true)) {
 		std::cout << "Cannot initialize camera device." << std::endl;
 		return -1;

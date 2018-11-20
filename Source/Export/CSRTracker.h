@@ -26,9 +26,21 @@ namespace CSRT {
 // Global Functions
 //
 
-extern CSRT_API void StartSystem(int count = 0, const char *logPath = nullptr);
-extern CSRT_API void CloseSystem();
+// Must call 'StartSystem' at the first and call 'CloseSystem' at the end.
+CSRT_API void StartSystem(int count = 0, const char *logPath = nullptr);
+CSRT_API void CloseSystem();
 
+// Build in image loader
+// Load image from file path. You cannot free the 'data' pointer manually.
+// Call 'FinishLoadImage' will free all the current loading image data.
+CSRT_API bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data);
+CSRT_API void FinishLoadImage();
+
+// Build in logging
+CSRT_API void Info(const char *message);
+CSRT_API void Warning(const char *message);
+CSRT_API void Error(const char *message);
+CSRT_API void Critical(const char *message);
 
 //
 // Global Structs
@@ -106,16 +118,6 @@ struct Bounds {
     int x1;
     int y1;
 };
-
-
-//
-// Build in image loader
-//
-
-// Load image from file path. You cannot free the 'data' pointer manually.
-// Call 'FinishLoadImage' will free all the current loading image data.
-CSRT_API bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data);
-CSRT_API void FinishLoadImage();
 
 
 //

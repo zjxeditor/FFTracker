@@ -51,6 +51,37 @@ void CloseSystem() {
     CSRT::ClearLogger();
 }
 
+bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data) {
+    if(path == nullptr) return false;
+    Mat img(path);
+    width = img.Cols();
+    height = img.Rows();
+    channels = img.Channels();
+    *data = img.Data();
+    return true;
+}
+
+void FinishLoadImage() {
+    GImageMemoryArena.ResetImgLoadArena();
+}
+
+void Info(const char *message) {
+    Info(std::string(message));
+}
+
+void Warning(const char *message) {
+    Warning(std::string(message));
+}
+
+void Error(const char *message) {
+    Error(std::string(message));
+}
+
+void Critical(const char *message) {
+    Critical(std::string(message));
+}
+
+
 CSRTrackerParams::CSRTrackerParams() {
     UseHOG = true;
     UseCN = true;
@@ -97,20 +128,6 @@ CSRTrackerParams::CSRTrackerParams() {
     UpdateInterval = 4;
     UseScale = true;
     UseSmoother = true;
-}
-
-bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data) {
-    if(path == nullptr) return false;
-    Mat img(path);
-    width = img.Cols();
-    height = img.Rows();
-    channels = img.Channels();
-    *data = img.Data();
-    return true;
-}
-
-void FinishLoadImage() {
-    GImageMemoryArena.ResetImgLoadArena();
 }
 
 CSRTracker::CSRTracker(int rows, int cols, int targetCount, CSRTrackMode mode, const CSRT::CSRTrackerParams &trackerParams)

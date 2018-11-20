@@ -19,7 +19,7 @@ namespace CSRT {
 // Standard color names features.
 extern const float ColorNames[][10];
 
-class FeaturesExtractor {
+class CSRT_API FeaturesExtractor {
 public:
 	FeaturesExtractor();
 	~FeaturesExtractor();
@@ -86,7 +86,7 @@ private:
 };
 
 // Global Feature Extractor
-extern FeaturesExtractor GFeatsExtractor;
+extern CSRT_API FeaturesExtractor GFeatsExtractor;
 
 }	// namespace CSRT
 

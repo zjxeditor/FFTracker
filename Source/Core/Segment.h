@@ -16,7 +16,7 @@
 
 namespace CSRT {
 
-class Histogram {
+class CSRT_API Histogram {
 public:
 	Histogram(MemoryArena *storage = nullptr) : dim(0), bins(0), size(0), arena(storage), data(nullptr), dimCoe(nullptr) { }
 	Histogram(int dimNum, int binsNum, MemoryArena *storage = nullptr);
@@ -55,7 +55,7 @@ private:
 	int *dimCoe;
 };
 
-class Segment {
+class CSRT_API Segment {
 public:
 	Segment();
 	~Segment();
@@ -77,7 +77,7 @@ private:
 };
 
 // Global Segment Helper.
-extern Segment GSegment;
+extern CSRT_API Segment GSegment;
 
 }	// namespace CSRT
 

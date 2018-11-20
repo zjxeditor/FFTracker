@@ -5,9 +5,6 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Add export definition
-add_definitions(-DCSRT_EXPORT)
-
 # Add sanitizers
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
@@ -155,6 +152,8 @@ include_directories(
         Source/Core
         Source/Export)
 
+# Add export definition
+add_definitions(-DCSRT_EXPORT)
 
 # Camera support library
 add_library(csrt_camera SHARED
@@ -173,6 +172,9 @@ add_library(csrt SHARED
         ${CSRT_HEADERS})
 add_sanitizers(csrt)
 target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+# Remove export definition
+remove_definitions(-DCSRT_EXPORT)
 
 # Test executable
 find_package(OpenCV REQUIRED) # OpenCV is required for test cases.

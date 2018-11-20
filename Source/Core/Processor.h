@@ -17,7 +17,7 @@
 
 namespace CSRT {
 
-struct TrackerParams {
+struct CSRT_API TrackerParams {
 	// Default constructor.
 	TrackerParams();
 
@@ -74,7 +74,7 @@ enum class TrackMode {
 	Depth = 1
 };
 
-class Processor {
+class CSRT_API Processor {
 public:
 	Processor(const TrackerParams &trackParams, int count, const Vector2i &moveSize, TrackMode mode);
 	~Processor();

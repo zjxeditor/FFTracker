@@ -12,6 +12,16 @@
 #ifndef CSRT_CSRT_H
 #define CSRT_CSRT_H
 
+#ifdef _WIN32
+#ifdef CSRT_EXPORT
+#define CSRT_API __declspec(dllexport)
+#else
+#define CSRT_API __declspec(dllimport)
+#endif
+#else
+#define CSRT_API
+#endif
+
 //
 // Global Include Files
 //
@@ -85,7 +95,7 @@ inline int64_t Duration(TimePt start, TimePt end) { return std::chrono::duration
 // Global Logging
 //
 
-extern std::shared_ptr<spdlog::logger> Logger;
+extern CSRT_API std::shared_ptr<spdlog::logger> Logger;
 
 // Create logger.
 inline void CreateLogger(std::string filePath = "") {
