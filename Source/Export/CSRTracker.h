@@ -13,8 +13,10 @@
 #ifdef _WIN32
 #ifdef CSRT_EXPORT
 #define CSRT_API __declspec(dllexport)
-#else
+#elif CSRT_IMPORT
 #define CSRT_API __declspec(dllimport)
+#else
+#define CSRT_API
 #endif
 #else
 #define CSRT_API
