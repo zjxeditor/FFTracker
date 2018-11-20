@@ -15,7 +15,7 @@
 
 namespace CSRT {
 
-class CSRT_API DSST {
+class DSST {
 public:
 	// DSST Public Methods
 	DSST(float learnRateOfScale) :

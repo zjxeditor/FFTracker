@@ -53,7 +53,7 @@ inline int ExtrapolateBorder(int index, int len, BorderType type) {
 }
 
 // Memory Arena Help Class
-class CSRT_API ImageMemoryArena {
+class ImageMemoryArena {
 public:
 	ImageMemoryArena();
 	~ImageMemoryArena();
@@ -65,12 +65,12 @@ private:
 };
 
 // Global image arena management.
-extern CSRT_API ImageMemoryArena GImageMemoryArena;
+extern ImageMemoryArena GImageMemoryArena;
 
 class MatF;
 
 // Mat Class
-class CSRT_API Mat {
+class Mat {
 	friend class MatF;
 
 public:
@@ -146,7 +146,7 @@ private:
 class MatCF;
 class FFT;
 
-class CSRT_API MatF {
+class MatF {
 	friend class Mat;
 	friend class MatCF;
 	friend class FFT;
@@ -218,7 +218,7 @@ private:
 	float* data;
 };
 
-class CSRT_API MatCF {
+class MatCF {
 	friend class MatF;
 
 public:
@@ -281,24 +281,24 @@ private:
 	ComplexF* data;
 };
 
-CSRT_API void CwiseMul(const MatF &A, const MatF &B, MatF &C, float scale = 1.0f, float offset = 0.0f);
-CSRT_API void CWiseAdd(const MatF &A, const MatF &B, MatF &C, float scale = 1.0f, float offset = 0.0f);
-CSRT_API void CWiseAddRecip(const MatF &A, const MatF &B, MatF &C, float scale = 1.0f, float offset = 0.0f);
-CSRT_API void CWiseLog(const MatF &A, MatF &B);
+void CwiseMul(const MatF &A, const MatF &B, MatF &C, float scale = 1.0f, float offset = 0.0f);
+void CWiseAdd(const MatF &A, const MatF &B, MatF &C, float scale = 1.0f, float offset = 0.0f);
+void CWiseAddRecip(const MatF &A, const MatF &B, MatF &C, float scale = 1.0f, float offset = 0.0f);
+void CWiseLog(const MatF &A, MatF &B);
 
 //
 // Debug methods. Performance inefficient. Do not use them in release mode.
 //
 
 // Save to mat data to local jpeg image. Note, fileName should not contain extension.
-CSRT_API void SaveToFile(const std::string &fileName, const Mat &mat);
-CSRT_API void SaveToFile(const std::string &fileName, const MatF &mat);
-CSRT_API void SaveToFile(const std::string &fileName, const MatCF &mat, ComplexMode mode = ComplexMode::Mag);
+void SaveToFile(const std::string &fileName, const Mat &mat);
+void SaveToFile(const std::string &fileName, const MatF &mat);
+void SaveToFile(const std::string &fileName, const MatCF &mat, ComplexMode mode = ComplexMode::Mag);
 
 // Print the mat data to logger.
-CSRT_API void PrintMat(const Mat &mat);
-CSRT_API void PrintMat(const MatF &mat);
-CSRT_API void PrintMat(const MatCF &mat);
+void PrintMat(const Mat &mat);
+void PrintMat(const MatF &mat);
+void PrintMat(const MatCF &mat);
 
 }	// namespace CSRT
 

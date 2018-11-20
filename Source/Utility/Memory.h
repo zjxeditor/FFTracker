@@ -17,12 +17,12 @@
 namespace CSRT {
 
 #define ARENA_ALLOC(arena, Type) new ((arena).Alloc(sizeof(Type))) Type
-CSRT_API void *AllocAligned(size_t size);
+void *AllocAligned(size_t size);
 template <typename T>
 T *AllocAligned(size_t count) {
 	return (T *)AllocAligned(count * sizeof(T));
 }
-CSRT_API void FreeAligned(void *);
+void FreeAligned(void *);
 
 // Memory Arena for dynamic memory management. Note, it is not thread safe.
 // It does not support freeing of individual blocks of memory, only freeing 

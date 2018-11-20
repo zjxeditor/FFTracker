@@ -1,56 +1,12 @@
 // Real time tracker test.
 
-#include "CSRT.h"
-#include "Utility/Geometry.h"
-#include "Utility/Parallel.h"
-#include "Utility/Mat.h"
-#include "Utility/FFT.h"
-#include "Core/FeaturesExtractor.h"
-#include "Core/Filter.h"
-#include "Core/InfoProvider.h"
-#include "Core/Processor.h"
-#include <fstream>
-#include "Core/Filter.h"
-#include "Camera/KinectService2.h"
-#include "Camera/RealSense.h"
-
+#include "../Source/Core/Processor.h"
+#include "../Source/Camera/Camera.h"
 #include <opencv2/opencv.hpp>
+#include <fstream>
 #include <memory>
 
 using namespace CSRT;
-
-inline void StartSystem() {
-	CSRT::CreateLogger();
-	CSRT::SetThreadCount(NumSystemCores() + 1);
-	CSRT::ParallelInit();
-	Eigen::setNbThreads(MaxThreadIndex());
-	Eigen::initParallel();
-	GFFT.Initialize();
-	GImageMemoryArena.Initialize();
-	GFeatsExtractor.Initialize();
-	GFilter.Initialize();
-	GSegment.Initialize();
-	GInfoProvider.Initialize();
-}
-
-inline void CloseSystem() {
-	CSRT::ParallelCleanup();
-	CSRT::Info("All work is done!");
-	CSRT::ClearLogger();
-}
-
-inline void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, int cols) {
-	ParallelFor([&](int64_t y) {
-		const unsigned char *ps = srcData + y * cols * 4;
-		unsigned char *pd = dstData + y * cols * 3;
-		for (int i = 0; i < cols; ++i) {
-			*(pd++) = *(ps++);
-			*(pd++) = *(ps++);
-			*(pd++) = *(ps++);
-			++ps;
-		}
-	}, rows, 32);
-}
 
 int main() {
 	StartSystem();
@@ -132,7 +88,7 @@ int main() {
 	params.UseSmoother = true;
 
 	// Configure camera
-	std::unique_ptr<CameraService> camera(new RealSense(true, 2));
+	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
 	if (!camera->Initialize(true, false)) {
 		std::cout << "Cannot initialize camera device." << std::endl;
 		CloseSystem();

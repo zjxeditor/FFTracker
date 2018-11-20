@@ -1,49 +1,18 @@
-// Produce testing tracker video.
+// Real time tracker test.
 
-#include "CSRT.h"
-#include "Utility/Geometry.h"
-#include "Utility/Parallel.h"
-#include "Utility/Mat.h"
-#include "Utility/FFT.h"
-#include "Core/FeaturesExtractor.h"
-#include "Core/Filter.h"
-#include "Core/InfoProvider.h"
-#include "Core/Processor.h"
-#include <fstream>
-#include "Core/Filter.h"
-#include "Camera/KinectService2.h"
-#include "Camera/RealSense.h"
-
+#include "../Source/Core/Processor.h"
+#include "../Source/Camera/Camera.h"
 #include <opencv2/opencv.hpp>
+#include <fstream>
 #include <memory>
 
 using namespace CSRT;
-
-inline void StartSystem() {
-	CSRT::CreateLogger();
-	CSRT::SetThreadCount(NumSystemCores() + 1);
-	CSRT::ParallelInit();
-	Eigen::setNbThreads(MaxThreadIndex());
-	Eigen::initParallel();
-	GFFT.Initialize();
-	GImageMemoryArena.Initialize();
-	GFeatsExtractor.Initialize();
-	GFilter.Initialize();
-	GSegment.Initialize();
-	GInfoProvider.Initialize();
-}
-
-inline void CloseSystem() {
-	CSRT::ParallelCleanup();
-	CSRT::Info("All work is done!");
-	CSRT::ClearLogger();
-}
 
 int main() {
 	StartSystem();
 
 	float scale = 1.0f;
-	int radius = 35;
+	int radius = 40;
 	int targetCount = 2;
 
 	TrackerParams params;
@@ -87,7 +56,7 @@ int main() {
 	params.UseSmoother = true;
 
 	// Configure camera
-	std::unique_ptr<CameraService> camera(new RealSense(true, 2));
+	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
 	if (!camera->Initialize(false, true)) {
 		std::cout << "Cannot initialize camera device." << std::endl;
 		CloseSystem();
@@ -102,14 +71,14 @@ int main() {
 	camera->SetDepthData(depthFrame.Data());
 	camera->SetPointCloud(reinterpret_cast<CameraPoint3*>(pointFrame.Data()));
 
-	// Configure OpenCV.
+	// Configure openCV
 	cv::Scalar WaitColor = cv::Scalar(0, 0, 255);
 	cv::Scalar TrackColor = cv::Scalar(0, 255, 0);
 	std::string WindowName = "Tracker";
 	cv::namedWindow(WindowName, 1);
 	cv::Mat cvImage(postHeight, postWidth, CV_8UC3);
 
-	// Create tracker.
+	// Create tracker
 	std::unique_ptr<Processor> pTracker(new Processor(params, targetCount, Vector2i(postWidth, postHeight), TrackMode::Depth));
 	MatF postDepthFrame, postPointFrame;
 	MatF normalFrame(postHeight, postWidth * 3);
@@ -129,17 +98,9 @@ int main() {
 		initbbs[i].pMax.y = centerY + radius;
 	}
 
-	TimePt startTime;
-	TimePt endTime;
-	int frames = 0;
-
-	// Create video writer
-	cv::VideoWriter outputVideo;
-	outputVideo.open("trackDepth.avi", CV_FOURCC('M', 'J', 'P', 'G'), 20, cv::Size(postWidth, postHeight), true);
-
-	// Main loop.
+	// Main loop
 	bool started = false;
-	startTime = TimeNow();
+	TimePt startTime = TimeNow();
 	while (true) {
 		int key = cv::waitKey(1);
 		if (key == 27) break;
@@ -148,8 +109,8 @@ int main() {
 		camera->Tick();
 		depthFrame.Resize(postDepthFrame, postHeight, postWidth);
 		pointFrame.Resize(postPointFrame, postHeight, postWidth, 3);
-		GFeatsExtractor.ComputePolarNormalFromPointCloud(reinterpret_cast<Vector3f*>(postPointFrame.Data()), reinterpret_cast<Vector2f*>(polarNormalFrame.Data()), postWidth, postHeight);
-		GFeatsExtractor.ConvertPolarNormalToNormal(reinterpret_cast<Vector2f*>(polarNormalFrame.Data()), reinterpret_cast<Vector3f*>(normalFrame.Data()), postWidth, postHeight);
+		ComputePolarNormalFromPointCloud(reinterpret_cast<Vector3f*>(postPointFrame.Data()), reinterpret_cast<Vector2f*>(polarNormalFrame.Data()), postWidth, postHeight);
+		ConvertPolarNormalToNormal(reinterpret_cast<Vector2f*>(polarNormalFrame.Data()), reinterpret_cast<Vector3f*>(normalFrame.Data()), postWidth, postHeight);
 		normalFrame.ToMat(normalShowFrame, 3, 255.0f / 2.0f, 255.0f / 2.0f);
 		memcpy(cvImage.data, normalShowFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
 
@@ -162,9 +123,6 @@ int main() {
 				int newRadius = std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2;
 				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, TrackColor, 2);
 			}
-			startTime = TimeNow();
-			cv::flip(cvImage, cvImage, 1);
-			outputVideo.write(cvImage);
 		} else if (started) {
 			std::vector<Bounds2i> outputbbs;
 			pTracker->Update(postDepthFrame, polarNormalFrame, outputbbs);
@@ -174,10 +132,6 @@ int main() {
 				int newRadius = std::max(outputbbs[i].pMax.x - outputbbs[i].pMin.x, outputbbs[i].pMax.y - outputbbs[i].pMin.y) / 2;
 				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, TrackColor, 2);
 			}
-			//std::cout << score << std::endl;
-			++frames;
-			cv::flip(cvImage, cvImage, 1);
-			outputVideo.write(cvImage);
 		} else {
 			for (int i = 0; i < targetCount; ++i) {
 				int centerX = (initbbs[i].pMin.x + initbbs[i].pMax.x) / 2;
@@ -185,19 +139,13 @@ int main() {
 				int newRadius = std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2;
 				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, WaitColor, 2);
 			}
-			cv::flip(cvImage, cvImage, 1);
 		}
 
+		cv::flip(cvImage, cvImage, 1);
 		cv::imshow(WindowName, cvImage);
 	}
 
-	endTime = TimeNow();
-	float fps = frames / (Duration(startTime, endTime) * 1e-6f);
-	std::cout << "fps: " << fps << std::endl;
-
-	// the camera will be deinitialized automatically in VideoCapture destructor
 	camera->Release();
-	outputVideo.release();
 	pTracker.reset();
 	CloseSystem();
 	return 0;

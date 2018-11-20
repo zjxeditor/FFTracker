@@ -152,14 +152,12 @@ include_directories(
         Source/Core
         Source/Export)
 
-# Add export definition
-add_definitions(-DCSRT_EXPORT)
-
 # Camera support library
 add_library(csrt_camera SHARED
         ${CSRT_CAMERA_SOURCE}
         ${CSRT_CAMERA_HEADERS})
 add_sanitizers(csrt_camera)
+target_compile_definitions(csrt_camera PUBLIC CSRT_EXPORT)
 if (WIN32 AND MSVC)
     target_link_libraries(csrt_camera ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS})
 else ()
@@ -171,46 +169,76 @@ add_library(csrt SHARED
         ${CSRT_SOURCE}
         ${CSRT_HEADERS})
 add_sanitizers(csrt)
+target_compile_definitions(csrt PUBLIC CSRT_EXPORT)
 target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
-
-# Remove export definition
-remove_definitions(-DCSRT_EXPORT)
 
 # Test executable
 find_package(OpenCV REQUIRED) # OpenCV is required for test cases.
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(test_camera Source/testCamera.cpp)
-add_sanitizers(test_camera)
-target_link_libraries(test_camera csrt csrt_camera ${OpenCV_LIBS})
+if(APPLE)
+    # Compile for macOS
+    add_executable(test_camera Run/testCamera.cpp)
+    add_sanitizers(test_camera)
+    target_link_libraries(test_camera csrt csrt_camera ${OpenCV_LIBS})
 
-add_executable(test_eval_direct Source/testEvalDirect.cpp)
-add_sanitizers(test_eval_direct)
-target_link_libraries(test_eval_direct csrt csrt_camera ${OpenCV_LIBS})
+    add_executable(test_eval_direct Run/testEvalDirect.cpp)
+    add_sanitizers(test_eval_direct)
+    target_link_libraries(test_eval_direct csrt csrt_camera ${OpenCV_LIBS})
 
-add_executable(test_features Source/testFeatures.cpp)
-add_sanitizers(test_features)
-target_link_libraries(test_features csrt csrt_camera ${OpenCV_LIBS})
+    add_executable(test_features Run/testFeatures.cpp)
+    add_sanitizers(test_features)
+    target_link_libraries(test_features csrt csrt_camera ${OpenCV_LIBS})
 
-add_executable(test_run_direct Source/testRunDirect.cpp)
-add_sanitizers(test_run_direct)
-target_link_libraries(test_run_direct csrt csrt_camera ${OpenCV_LIBS})
+    add_executable(test_run_direct Run/testRunDirect.cpp)
+    add_sanitizers(test_run_direct)
+    target_link_libraries(test_run_direct csrt csrt_camera ${OpenCV_LIBS})
 
-add_executable(test_run_direct_depth Source/testRunDirectDepth.cpp)
-add_sanitizers(test_run_direct_depth)
-target_link_libraries(test_run_direct_depth csrt csrt_camera ${OpenCV_LIBS})
+    add_executable(test_run_direct_depth Run/testRunDirectDepth.cpp)
+    add_sanitizers(test_run_direct_depth)
+    target_link_libraries(test_run_direct_depth csrt csrt_camera ${OpenCV_LIBS})
 
-add_executable(test_run_video Source/testRunVideo.cpp)
-add_sanitizers(test_run_video)
-target_link_libraries(test_run_video csrt csrt_camera ${OpenCV_LIBS})
+    add_executable(test_run_video Run/testRunVideo.cpp)
+    add_sanitizers(test_run_video)
+    target_link_libraries(test_run_video csrt csrt_camera ${OpenCV_LIBS})
 
-add_executable(test_run_video_depth Source/testRunVideoDepth.cpp)
-add_sanitizers(test_run_video_depth)
-target_link_libraries(test_run_video_depth csrt csrt_camera ${OpenCV_LIBS})
+    add_executable(test_run_video_depth Run/testRunVideoDepth.cpp)
+    add_sanitizers(test_run_video_depth)
+    target_link_libraries(test_run_video_depth csrt csrt_camera ${OpenCV_LIBS})
+elseif(WIN32 AND MSVC)
+    # Windows platform and MSVC compiler
+    add_executable(test_camera Run/testCamera.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_camera)
+    target_link_libraries(test_camera ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
+    add_executable(test_eval_direct Run/testEvalDirect.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_eval_direct)
+    target_link_libraries(test_eval_direct ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(test_features Run/testFeatures.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_features)
+    target_link_libraries(test_features ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(test_run_direct Run/testRunDirect.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_run_direct)
+    target_link_libraries(test_run_direct ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(test_run_direct_depth Run/testRunDirectDepth.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_run_direct_depth)
+    target_link_libraries(test_run_direct_depth ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(test_run_video Run/testRunVideo.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_run_video)
+    target_link_libraries(test_run_video ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(test_run_video_depth Run/testRunVideoDepth.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_run_video_depth)
+    target_link_libraries(test_run_video_depth ${OpenCV_LIBS} ${KINECTV1_LIBS} ${KINECTV2_LIBS} ${REALSENSE_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+else()
+    message(FATAL_ERROR, "Unsupported platform.")
+endif()
 
 # vot integration
-
 if (NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Trax")
     message(FATAL_ERROR "The Trax library is missing!")
 endif ()
@@ -237,6 +265,14 @@ else ()
     message(FATAL_ERROR, "Unsupported platform.")
 endif ()
 
-add_executable(vot_interface Source/votInterface.cpp Source/vot.h)
-add_sanitizers(vot_interface)
-target_link_libraries(vot_interface csrt ${TRAX_LIBS})
+if (WIN32 AND MSVC)
+    add_executable(vot_interface Run/votInterface.cpp Run/vot.h ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(vot_interface)
+    target_link_libraries(vot_interface ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT} ${TRAX_LIBS})
+elseif (APPLE)
+    add_executable(vot_interface Run/votInterface.cpp Run/vot.h)
+    add_sanitizers(vot_interface)
+    target_link_libraries(vot_interface csrt ${TRAX_LIBS})
+else ()
+    message(FATAL_ERROR, "Unsupported platform.")
+endif ()

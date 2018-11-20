@@ -1,16 +1,5 @@
-#include "CSRT.h"
-#include "Utility/Geometry.h"
-#include "Utility/Parallel.h"
-#include "Utility/Mat.h"
-#include "Utility/FFT.h"
-#include "Core/FeaturesExtractor.h"
-#include "Core/Filter.h"
-#include "Core/InfoProvider.h"
-#include "Core/Processor.h"
-#include "Core/Filter.h"
-#include "Camera/KinectService2.h"
-#include "Camera/RealSense.h"
-
+#include "../Source/Core/Processor.h"
+#include "../Source/Camera/Camera.h"
 #include <memory>
 
 // Uncomment line below if you want to use rectangles
@@ -19,29 +8,9 @@
 
 using namespace CSRT;
 
-inline void StartSystem() {
-    CSRT::CreateLogger();
-    CSRT::SetThreadCount(NumSystemCores() + 1);
-    CSRT::ParallelInit();
-    Eigen::setNbThreads(MaxThreadIndex());
-    Eigen::initParallel();
-    GFFT.Initialize();
-    GImageMemoryArena.Initialize();
-    GFeatsExtractor.Initialize();
-    GFilter.Initialize();
-    GSegment.Initialize();
-    GInfoProvider.Initialize();
-}
-
-inline void CloseSystem() {
-    CSRT::ParallelCleanup();
-    CSRT::Info("All work is done!");
-    CSRT::ClearLogger();
-}
-
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     StartSystem();
+
     TrackerParams params;
     params.UseHOG = true;
     params.UseCN = true;

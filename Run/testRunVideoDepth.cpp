@@ -1,69 +1,25 @@
 // Produce testing tracker video.
 
-#include "CSRT.h"
-#include "Utility/Geometry.h"
-#include "Utility/Parallel.h"
-#include "Utility/Mat.h"
-#include "Utility/FFT.h"
-#include "Core/FeaturesExtractor.h"
-#include "Core/Filter.h"
-#include "Core/InfoProvider.h"
-#include "Core/Processor.h"
-#include <fstream>
-#include "Core/Filter.h"
-#include "Camera/KinectService2.h"
-#include "Camera/RealSense.h"
-
+#include "../Source/Core/Processor.h"
+#include "../Source/Camera/Camera.h"
 #include <opencv2/opencv.hpp>
+#include <fstream>
 #include <memory>
 
 using namespace CSRT;
 
-inline void StartSystem() {
-	CSRT::CreateLogger();
-	CSRT::SetThreadCount(NumSystemCores() + 1);
-	CSRT::ParallelInit();
-	Eigen::setNbThreads(MaxThreadIndex());
-	Eigen::initParallel();
-	GFFT.Initialize();
-	GImageMemoryArena.Initialize();
-	GFeatsExtractor.Initialize();
-	GFilter.Initialize();
-	GSegment.Initialize();
-	GInfoProvider.Initialize();
-}
-
-inline void CloseSystem() {
-	CSRT::ParallelCleanup();
-	CSRT::Info("All work is done!");
-	CSRT::ClearLogger();
-}
-
-inline  void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, int cols) {
-	ParallelFor([&](int64_t y) {
-		const unsigned char *ps = srcData + y * cols * 4;
-		unsigned char *pd = dstData + y * cols * 3;
-		for (int i = 0; i < cols; ++i) {
-			*(pd++) = *(ps++);
-			*(pd++) = *(ps++);
-			*(pd++) = *(ps++);
-			++ps;
-		}
-	}, rows, 32);
-}
-
 int main() {
 	StartSystem();
 
-	float scale = 0.8f;
-	int radius = 60;
+	float scale = 1.0f;
+	int radius = 35;
 	int targetCount = 2;
 
 	TrackerParams params;
 	params.UseHOG = true;
 	params.UseCN = true;
 	params.UseGRAY = true;
-	params.UseRGB = true;
+	params.UseRGB = false;
 	params.UseDepthHOG = true;
 	params.UseDepthGray = true;
 	params.UseDepthNormal = true;
@@ -100,19 +56,20 @@ int main() {
 	params.UseSmoother = true;
 
 	// Configure camera
-	std::unique_ptr<CameraService> camera(new RealSense(true, 2));
-	if (!camera->Initialize(true, false)) {
+	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
+	if (!camera->Initialize(false, true)) {
 		std::cout << "Cannot initialize camera device." << std::endl;
 		CloseSystem();
 		return -1;
 	}
-	int colorWidth = camera->GetColorWidth();
-	int colorHeight = camera->GetColorHeight();
-	int postWidth = colorWidth * scale;
-	int postHeight = colorHeight * scale;
-	Mat rawColorFrame(colorHeight, colorWidth, 4);
-	Mat colorFrame(colorHeight, colorWidth, 3);
-	camera->SetColorData(rawColorFrame.Data());
+	int depthWidth = camera->GetDepthWidth();
+	int depthHeight = camera->GetDepthHeight();
+	int postWidth = depthWidth * scale;
+	int postHeight = depthHeight * scale;
+	MatF depthFrame(depthHeight, depthWidth);
+	MatF pointFrame(depthHeight, depthWidth * 3);
+	camera->SetDepthData(depthFrame.Data());
+	camera->SetPointCloud(reinterpret_cast<CameraPoint3*>(pointFrame.Data()));
 
 	// Configure OpenCV.
 	cv::Scalar WaitColor = cv::Scalar(0, 0, 255);
@@ -122,8 +79,11 @@ int main() {
 	cv::Mat cvImage(postHeight, postWidth, CV_8UC3);
 
 	// Create tracker.
-	std::unique_ptr<Processor> pTracker(new Processor(params, targetCount, Vector2i(postWidth, postHeight), TrackMode::RGB));
-	Mat postFrame;
+	std::unique_ptr<Processor> pTracker(new Processor(params, targetCount, Vector2i(postWidth, postHeight), TrackMode::Depth));
+	MatF postDepthFrame, postPointFrame;
+	MatF normalFrame(postHeight, postWidth * 3);
+	MatF polarNormalFrame(postHeight, postWidth * 2);
+	Mat normalShowFrame;
 
 	// Create initial bounding boxes.
 	std::vector<Bounds2i> initbbs(targetCount, Bounds2i());
@@ -144,7 +104,7 @@ int main() {
 
 	// Create video writer
 	cv::VideoWriter outputVideo;
-	outputVideo.open("trackRGB.avi", CV_FOURCC('M', 'J', 'P', 'G'), 20, cv::Size(postWidth, postHeight), true);
+	outputVideo.open("trackDepth.avi", CV_FOURCC('M', 'J', 'P', 'G'), 20, cv::Size(postWidth, postHeight), true);
 
 	// Main loop.
 	bool started = false;
@@ -155,13 +115,16 @@ int main() {
 
 		// Fetch data
 		camera->Tick();
-		Rgba2Rgb(rawColorFrame.Data(), colorFrame.Data(), colorHeight, colorWidth);
-		colorFrame.Resize(postFrame, postHeight, postWidth);
-		memcpy(cvImage.data, postFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
+		depthFrame.Resize(postDepthFrame, postHeight, postWidth);
+		pointFrame.Resize(postPointFrame, postHeight, postWidth, 3);
+		ComputePolarNormalFromPointCloud(reinterpret_cast<Vector3f*>(postPointFrame.Data()), reinterpret_cast<Vector2f*>(polarNormalFrame.Data()), postWidth, postHeight);
+		ConvertPolarNormalToNormal(reinterpret_cast<Vector2f*>(polarNormalFrame.Data()), reinterpret_cast<Vector3f*>(normalFrame.Data()), postWidth, postHeight);
+		normalFrame.ToMat(normalShowFrame, 3, 255.0f / 2.0f, 255.0f / 2.0f);
+		memcpy(cvImage.data, normalShowFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
 
 		if (!started && Duration(startTime, TimeNow()) > 5e6) {
 			started = true;
-			pTracker->Initialize(postFrame, initbbs);
+			pTracker->Initialize(postDepthFrame, polarNormalFrame, initbbs);
 			for (int i = 0; i < targetCount; ++i) {
 				int centerX = (initbbs[i].pMin.x + initbbs[i].pMax.x) / 2;
 				int centerY = (initbbs[i].pMin.y + initbbs[i].pMax.y) / 2;
@@ -173,7 +136,7 @@ int main() {
 			outputVideo.write(cvImage);
 		} else if (started) {
 			std::vector<Bounds2i> outputbbs;
-			pTracker->Update(postFrame, outputbbs);
+			pTracker->Update(postDepthFrame, polarNormalFrame, outputbbs);
 			for (int i = 0; i < targetCount; ++i) {
 				int centerX = (outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2;
 				int centerY = (outputbbs[i].pMin.y + outputbbs[i].pMax.y) / 2;

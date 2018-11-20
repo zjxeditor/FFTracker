@@ -15,9 +15,9 @@ std::unique_ptr<CameraService> CreateCameraService(CameraType type, bool dpPostP
         case CameraType::RealSense:
             return std::unique_ptr<CameraService>(new RealSense(dpPostProcessing, dimReduce));
         case CameraType::KinectV1:
-            return std::unique_ptr<CameraService>(new KinectV1());
+            return std::unique_ptr<CameraService>(new KinectService1());
         case CameraType::KinectV2:
-            return std::unique_ptr<CameraService>(new KinectV2());
+            return std::unique_ptr<CameraService>(new KinectService2());
         default:
             throw std::runtime_error("CreateCameraService: unsupported camera service type.");
     }

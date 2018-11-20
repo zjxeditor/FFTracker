@@ -1,24 +1,16 @@
 // Feature extraction test.
 
+#include "../Source/Core/Processor.h"
+#include "../Source/Camera/Camera.h"
 #include <opencv2/opencv.hpp>
-#include "Camera/KinectService2.h"
-#include "Camera/RealSense.h"
-
-#include "CSRT.h"
-#include "Utility/Parallel.h"
-#include "Utility/Mat.h"
-#include "Core/FeaturesExtractor.h"
 
 using namespace CSRT;
 
 int main() {
-	CSRT::CreateLogger();
-	CSRT::SetThreadCount(NumSystemCores() + 1);
-	CSRT::ParallelInit();
-	GFeatsExtractor.Initialize();
+	StartSystem();
 
 	// Configure camera
-	std::unique_ptr<CameraService> camera(new RealSense(false, 2));
+	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
 	if (!camera->Initialize(false, true)) {
 		std::cout << "Cannot initialize camera device." << std::endl;
 		return -1;
@@ -53,7 +45,7 @@ int main() {
 		camera->Tick();
 		memcpy(depth.Data(), &depthData[0], depth.Size() * sizeof(float));
 
-		GFeatsExtractor.ComputeNormalFromPointCloud(&pointCloud[0], reinterpret_cast<Vector3f*>(normal.Data()), depthWidth, depthHeight);
+		ComputeNormalFromPointCloud(&pointCloud[0], reinterpret_cast<Vector3f*>(normal.Data()), depthWidth, depthHeight);
 		normal.ToMat(feature, 3, 255.0f / 2.0f, 255.0f / 2.0f);
 
 		//GFeatsExtractor.GetDepthFeaturesHON(normal, features, 4, 5, 10);
@@ -68,9 +60,6 @@ int main() {
 		cv::imshow(FeatureWindowName, cvFeatureImage);
 	}
 
-	CSRT::ParallelCleanup();
-	CSRT::Info("All work is done!");
-	CSRT::ClearLogger();
-
+	CloseSystem();
 	return 0;
 }

@@ -62,10 +62,10 @@ struct TransformSmoothParamter
     float fMaxDeviationRadius;    // The maximum radius in meters that filtered positions are allowed to deviate from raw data. Can snap back to noisy data when too high.
 };
 
-extern CSRT_API TransformSmoothParamter CommonSmoothParam;	// Good for common movement tracking.
-extern CSRT_API TransformSmoothParamter GestureSmoothParam;	// Good for gesture recognition.
-extern CSRT_API TransformSmoothParamter MenuSmoothParam;		// Good for menu operation.
-extern CSRT_API TransformSmoothParamter StationSmoothParam;	// Good for very smooth situation.
+extern TransformSmoothParamter CommonSmoothParam;	// Good for common movement tracking.
+extern TransformSmoothParamter GestureSmoothParam;	// Good for gesture recognition.
+extern TransformSmoothParamter MenuSmoothParam;		// Good for menu operation.
+extern TransformSmoothParamter StationSmoothParam;	// Good for very smooth situation.
 
 //
 // Holt Double Exponential Smoothing filter
@@ -96,7 +96,7 @@ struct FilterDoubleExponentialData2D
     int mFrameCount;
 };
 
-class CSRT_API FilterDoubleExponential1D
+class FilterDoubleExponential1D
 {
 public:
     FilterDoubleExponential1D() { Init(TransformSmoothParamter()); }
@@ -115,7 +115,7 @@ private:
     TransformSmoothParamter filterParameter;
 };
 
-class CSRT_API FilterDoubleExponential2D
+class FilterDoubleExponential2D
 {
 public:
     FilterDoubleExponential2D() { Init(TransformSmoothParamter()); }

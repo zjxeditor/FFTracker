@@ -17,7 +17,24 @@
 
 namespace CSRT {
 
-struct CSRT_API TrackerParams {
+// Must call 'StartSystem' at the first and call 'CloseSystem' at the end.
+void StartSystem(int count = 0, const char *logPath = nullptr);
+void CloseSystem();
+
+// Change from rgba data format to rgb data format.
+void Rgba2Rgb(unsigned char *srcData, unsigned char *dstData, int rows, int cols);
+
+// Calculate normal information from depth map.
+void ComputeNormalFromPointCloud(const Vector3f *pointCloud, Vector3f *normal, int width, int height);
+// Calculate polar normal information from depth map. First component is phi [0, Pi/2], second component is theta [0, 2Pi], both are normalized to [0, 1].
+void ComputePolarNormalFromPointCloud(const Vector3f *pointCloud, Vector2f *polarNormal, int width, int height);
+// Convert normalized normal to normalized polar representation.
+void ConvertNormalToPolarNormal(const Vector3f *normal, Vector2f *polarNormal, int width, int height);
+// Convert normalized polar normal to normalized normal representation.
+void ConvertPolarNormalToNormal(const Vector2f *polarNormal, Vector3f *normal, int width, int height);
+
+
+struct TrackerParams {
 	// Default constructor.
 	TrackerParams();
 
@@ -74,7 +91,7 @@ enum class TrackMode {
 	Depth = 1
 };
 
-class CSRT_API Processor {
+class Processor {
 public:
 	Processor(const TrackerParams &trackParams, int count, const Vector2i &moveSize, TrackMode mode);
 	~Processor();

@@ -27,8 +27,8 @@ namespace CSRT {
 //
 
 // Must call 'StartSystem' at the first and call 'CloseSystem' at the end.
-CSRT_API void StartSystem(int count = 0, const char *logPath = nullptr);
-CSRT_API void CloseSystem();
+CSRT_API void StartTheSystem(int count = 0, const char *logPath = nullptr);
+CSRT_API void CloseTheSystem();
 
 // Build in image loader
 // Load image from file path. You cannot free the 'data' pointer manually.

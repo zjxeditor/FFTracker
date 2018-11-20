@@ -28,7 +28,7 @@ enum class WindowType {
 
 class Processor;
 
-class CSRT_API InfoProvider {
+class InfoProvider {
 	friend class Processor;
 
 public:
@@ -133,7 +133,7 @@ private:
 };
 
 // Global Feature Provider
-extern CSRT_API InfoProvider GInfoProvider;
+extern InfoProvider GInfoProvider;
 
 }	// namespace CSRT
 

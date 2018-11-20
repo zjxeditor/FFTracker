@@ -19,7 +19,7 @@ namespace CSRT {
 // Standard color names features.
 extern const float ColorNames[][10];
 
-class CSRT_API FeaturesExtractor {
+class FeaturesExtractor {
 public:
 	FeaturesExtractor();
 	~FeaturesExtractor();
@@ -45,18 +45,6 @@ public:
 
 	// Extract 32 dimension depth HOG features.
 	void GetDepthFeaturesHOG(const MatF &depth, std::vector<MatF> &features, int binSize, MemoryArena *targetArena = nullptr);
-
-	// Calculate normal information from depth map.
-	void ComputeNormalFromPointCloud(const Vector3f *pointCloud, Vector3f *normal, int width, int height);
-
-	// Calculate polar normal information from depth map. First component is phi [0, Pi/2], second component is theta [0, 2Pi], both are normalized to [0, 1].
-	void ComputePolarNormalFromPointCloud(const Vector3f *pointCloud, Vector2f *polarNormal, int width, int height);
-
-	// Convert normalized normal to normalized polar representation.
-	void ConvertNormalToPolarNormal(const Vector3f *normal, Vector2f *polarNormal, int width, int height);
-
-	// Convert normalized polar normal to normalized normal representation.
-	void ConvertPolarNormalToNormal(const Vector2f *polarNormal, Vector3f *normal, int width, int height);
 
 	// Extract polar normal features.
 	void GetDepthFeaturesPolarNormal(const MatF &normal, std::vector<MatF> &features, const Vector2i &OutSize, MemoryArena *targetArena = nullptr);
@@ -86,7 +74,7 @@ private:
 };
 
 // Global Feature Extractor
-extern CSRT_API FeaturesExtractor GFeatsExtractor;
+extern FeaturesExtractor GFeatsExtractor;
 
 }	// namespace CSRT
 

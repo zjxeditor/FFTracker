@@ -21,34 +21,12 @@
 
 namespace CSRT {
 
-void StartSystem(int count, const char *logPath) {
-    if (logPath == nullptr)
-        CSRT::CreateLogger();
-    else
-        CSRT::CreateLogger(std::string(logPath));
-
-    if(count <= 0)
-        CSRT::SetThreadCount(NumSystemCores() + 1);
-    else {
-        if(count == 1) ++count;
-        CSRT::SetThreadCount(count);
-    }
-
-    CSRT::ParallelInit();
-    Eigen::setNbThreads(MaxThreadIndex());
-    Eigen::initParallel();
-    GFFT.Initialize();
-    GImageMemoryArena.Initialize();
-    GFeatsExtractor.Initialize();
-    GFilter.Initialize();
-    GSegment.Initialize();
-    GInfoProvider.Initialize();
+void StartTheSystem(int count, const char *logPath) {
+    StartSystem(count, logPath);
 }
 
-void CloseSystem() {
-    CSRT::ParallelCleanup();
-    CSRT::Info("All work is done!");
-    CSRT::ClearLogger();
+void CloseTheSystem() {
+    CloseSystem();
 }
 
 bool LoadImage(const char *path, int &width, int &height, int &channels, unsigned char **data) {

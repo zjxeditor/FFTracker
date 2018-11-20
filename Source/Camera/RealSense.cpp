@@ -122,7 +122,7 @@ bool RealSense::Initialize(bool color, bool depth) {
 		}
 		rs2_rs400_visual_preset preset = RS2_RS400_VISUAL_PRESET_HAND;
 		if(depthSensor.supports(RS2_OPTION_VISUAL_PRESET)) {
-			depthSensor.set_option(RS2_OPTION_VISUAL_PRESET, preset);
+			depthSensor.set_option(RS2_OPTION_VISUAL_PRESET, (float)preset);
 		}
 
 		// Get depth units
@@ -130,7 +130,7 @@ bool RealSense::Initialize(bool color, bool depth) {
 
 		// Configure post processing filters
 		if (postProcessing) {
-			dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, dec_filter_step);
+			dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, (float)dec_filter_step);
 			disparity2depth_filter = rs2::disparity_transform(false);
 			spat_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2.0f);
 			spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.5f);
@@ -228,8 +228,8 @@ void RealSense::ProcessDepth(uint16_t* buffer) {
 	int len = depthWidth * depthHeight;
 	float scale = 1.0f / (maxDepth - minDepth);
 	float offset = -minDepth * scale;
-	uint16_t low = minDepth / depthScale;
-	uint16_t up = maxDepth / depthScale;
+	uint16_t low = (uint16_t)(minDepth / depthScale);
+	uint16_t up = (uint16_t)(maxDepth / depthScale);
 
 	for (int i = 0; i < len; ++i) {
 		*buffer = CameraClamp(*buffer, low, up);
@@ -261,7 +261,7 @@ void RealSense::MapDepth2Color(const CameraPoint2* depthPoints, CameraPoint2* co
 	float pt0[3], pt1[3];
 	for (int i = 0; i < count; ++i) {
 		rs2_deproject_pixel_to_point(pt0, &depthIntrinsics, reinterpret_cast<const float*>(&depthPoints[i]),
-			depthCacheBuffer[depthPoints[i].Y * depthWidth + depthPoints[i].X] * depthScale);
+			depthCacheBuffer[(int)(depthPoints[i].Y * depthWidth + depthPoints[i].X)] * depthScale);
 		rs2_transform_point_to_point(pt1, &depth2Color, pt0);
 		rs2_project_point_to_pixel(reinterpret_cast<float*>(&colorPoints[i]), &colorIntrinsics, pt1);
 	}

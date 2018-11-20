@@ -21,7 +21,7 @@ enum class SubpixelDirection {
 	Vertical
 };
 
-class CSRT_API Filter {
+class Filter {
 public:
 	Filter();
 	~Filter();
@@ -85,7 +85,7 @@ private:
 };
 
 // Global Filter Helper.
-extern CSRT_API Filter GFilter;
+extern Filter GFilter;
 
 }	// namespace CSRT
 

@@ -16,7 +16,7 @@
 
 namespace CSRT {
 
-class CSRT_API Tracker {
+class Tracker {
 public:
 	// Tracker Public Methods
 	Tracker(bool channelWeights, int pca, int iter, float learnRateOfChannel, float learnRateOfFilter);

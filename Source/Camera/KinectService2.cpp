@@ -227,9 +227,9 @@ void KinectService2::MapColor2Depth(const CameraPoint2* colorPoints, CameraPoint
 	}
 
 	HRESULT hr = coordinateMapper->MapColorFrameToDepthSpace(
-		depthCacheBuffer.size(),
+		(UINT)depthCacheBuffer.size(),
 		&depthCacheBuffer[0],
-		color2DepthCache.size(),
+		(UINT)color2DepthCache.size(),
 		reinterpret_cast<DepthSpacePoint*>(&color2DepthCache[0]));
 	if (FAILED(hr)) {
 		throw std::runtime_error("KinectService2::MapColor2Depth: failed to map color points to depth points.");
@@ -281,9 +281,10 @@ void KinectService2::GeneratePointCloud() {
 		return;
 	}
 
-	HRESULT hr = coordinateMapper->MapDepthFrameToCameraSpace(depthCacheBuffer.size(),
+	HRESULT hr = coordinateMapper->MapDepthFrameToCameraSpace(
+        (UINT)depthCacheBuffer.size(),
 		&depthCacheBuffer[0],
-		depthCacheBuffer.size(),
+		(UINT)depthCacheBuffer.size(),
 		reinterpret_cast<CameraSpacePoint*>(&pointCloud[0]));
 
 	if(FAILED(hr))
