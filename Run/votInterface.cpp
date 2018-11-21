@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     params.UseDepthNormal = true;
     params.UseDepthHON = true;
     params.UseDepthNormalHOG = true;
-    params.NumHOGChannelsUsed = 31;
+    params.NumHOGChannelsUsed = 18;
     params.PCACount = 0;
     params.UseNormalForSegment = true;
     params.UseNormalForDSST = true;
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
     params.ScaleStep = 1.02f;
     params.UpdateInterval = 0;
     params.UseScale = true;
-    params.UseSmoother = true;
+    params.UseSmoother = false;
 
     VOT vot;
     std::vector<Bounds2i> bbs(1, Bounds2i());

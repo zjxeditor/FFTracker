@@ -183,7 +183,7 @@ int main() {
 	params.UseDepthNormal = true;
 	params.UseDepthHON = true;
 	params.UseDepthNormalHOG = true;
-	params.NumHOGChannelsUsed = 31;
+	params.NumHOGChannelsUsed = 18;
 	params.PCACount = 0;
 	params.UseNormalForSegment = true;
 	params.UseNormalForDSST = true;

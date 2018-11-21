@@ -60,7 +60,7 @@
 #define MEASURE_BEST_FFT
 
 // Pre-defined hog feature count. Optimize the hog computation method. Choose 18, 27, 31 or 32. 
-#define HOG_FEATURE_COUNT 31
+#define HOG_FEATURE_COUNT 18
 
 namespace CSRT {
 
