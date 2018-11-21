@@ -40,3 +40,6 @@ Source/.DS_Store
 Source/Core/.DS_Store
 cmake-build-debug/
 cmake-build-release/
+CMakeBuilds
+.vs
+CMakeSettings.json
