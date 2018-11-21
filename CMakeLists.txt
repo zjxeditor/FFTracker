@@ -251,7 +251,7 @@ if (WIN32 AND MSVC)
     else ()
         link_directories(ThirdParty/Trax/Windows/lib/debug)
     endif ()
-    set(TRAX_LIBS trax)
+	set(TRAX_LIBS traxd)
 elseif (APPLE)
     # Trax
     include_directories(ThirdParty/Trax/macOS/include)
