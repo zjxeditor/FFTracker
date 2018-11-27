@@ -48,7 +48,7 @@ void Tracker::CreateFilters(const std::vector<MatCF>& feats, const MatCF& Y, con
 		// Initialize.
 		GFilter.MulSpectrums(F, Y, Sxy, true);	// Sxy = F * Y.
 		GFilter.MulSpectrums(F, F, Sxx, true);	// Sxx = F * F.
-												// H = Sxy / [Sxx + lambda].
+		// H = Sxy / [Sxx + lambda].
 		GFilter.DivideComplexMatrices(Sxy, Sxx, H, ComplexF(lambda, lambda));
 		GFFT.FFTInv2(H, h, true);
 		h.CMul(P);
@@ -197,6 +197,22 @@ void Tracker::CalculateResponse(const std::vector<MatF>& ftrs, const std::vector
 		}
 		GFFT.FFTInv2(respf, response);
 	}
+
+//    int len = (int)Ffeatures.size();
+//    MatCF respf(filter[0].Rows(), filter[0].Cols(), &arenas[ThreadIndex]);
+//    MatCF tempf(&arenas[ThreadIndex]);
+//    if (useChannelWeights) {
+//        for (int i = 0; i < len; ++i) {
+//            GFilter.MulSpectrums(Ffeatures[i], filter[i], tempf, true);
+//            respf.CAdd(tempf, filterWeights[i], ComplexF(0.0f, 0.0f));
+//        }
+//    } else {
+//        for (int i = 0; i < len; ++i) {
+//            GFilter.MulSpectrums(Ffeatures[i], filter[i], tempf, true);
+//            respf.CAdd(tempf, 1.0f, ComplexF(0.0f, 0.0f));
+//        }
+//    }
+//    GFFT.FFTInv2(respf, response);
 }
 
 void Tracker::ResetArenas(bool background) const {

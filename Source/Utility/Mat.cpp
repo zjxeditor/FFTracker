@@ -1405,8 +1405,11 @@ void CWiseLog(const MatF &A, MatF &B) {
 	B.Reshape(rows, cols, false);
 	const float *pa = A.Data();
 	float *pb = B.Data();
-	for (int i = 0; i < A.Size(); ++i)
-		*(pb++) = std::log(*(pa++));
+	float temp;
+	for (int i = 0; i < A.Size(); ++i) {
+		temp = *(pa++);
+		*(pb++) = (temp <= 0.0f ? -800.0f : std::log(temp));
+	}
 }
 
 //

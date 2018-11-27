@@ -98,6 +98,47 @@ else ()
 endif ()
 
 # Set the source files
+set(IMAGE_RESAMPLER_SOURCE
+        Resampler/Base/vnHalf.cpp
+        Resampler/Base/vnImage.cpp
+        Resampler/Kernels/vnImageAverage.cpp
+        Resampler/Kernels/vnImageBicubic.cpp
+        Resampler/Kernels/vnImageBilinear.cpp
+        Resampler/Kernels/vnImageCoverage.cpp
+        Resampler/Kernels/vnImageGaussian.cpp
+        Resampler/Kernels/vnImageLanczos.cpp
+        Resampler/Kernels/vnImageNearest.cpp
+        Resampler/Kernels/vnImageSpline.cpp
+        Resampler/Operators/vnImageConvert.cpp
+        Resampler/Operators/vnImageResize.cpp
+        Resampler/Operators/vnImageScale.cpp
+        Resampler/Utilities/vnImageBlock.cpp
+        Resampler/Utilities/vnImageBlockPack.cpp
+        Resampler/Utilities/vnImageBlockUnpack.cpp
+        Resampler/Utilities/vnImageSampler.cpp)
+
+set(IMAGE_RESAMPLER_HEADERS
+        Resampler/Base/vnBase.h
+        Resampler/Base/vnHalf.h
+        Resampler/Base/vnImage.h
+        Resampler/Base/vnImageFormat.h
+        Resampler/Base/vnMath.h
+        Resampler/Kernels/vnImageAverage.h
+        Resampler/Kernels/vnImageBicubic.h
+        Resampler/Kernels/vnImageBilinear.h
+        Resampler/Kernels/vnImageCoverage.h
+        Resampler/Kernels/vnImageGaussian.h
+        Resampler/Kernels/vnImageLanczos.h
+        Resampler/Kernels/vnImageNearest.h
+        Resampler/Kernels/vnImageSpline.h
+        Resampler/Operators/vnImageClone.h
+        Resampler/Operators/vnImageConvert.h
+        Resampler/Operators/vnImageResize.h
+        Resampler/Operators/vnImageScale.h
+        Resampler/Utilities/vnImageBlock.h
+        Resampler/Utilities/vnImageSampler.h
+        Resampler/vnImagine.h)
+
 
 set(CSRT_CAMERA_SOURCE
         Source/Camera/KinectService1.cpp
@@ -150,7 +191,18 @@ include_directories(
         Source/Camera
         Source/Utility
         Source/Core
-        Source/Export)
+        Source/Export
+        Resampler
+        Resampler/Base
+        Resampler/Kernels
+        Resampler/Operators
+        Resampler/Utilities)
+
+# Image resampler library
+add_library(image_resampler SHARED
+        ${IMAGE_RESAMPLER_SOURCE}
+        ${IMAGE_RESAMPLER_HEADERS})
+add_sanitizers(image_resampler)
 
 # Camera support library
 add_library(csrt_camera SHARED
@@ -277,15 +329,32 @@ else ()
     message(FATAL_ERROR, "Unsupported platform.")
 endif ()
 
-# OpenCV CSRT vot integration
-if (WIN32 AND MSVC)
-    add_executable(vot_interface_cvcsrt Run/votInterface_cvcsrt.cpp Run/vot.h)
-    add_sanitizers(vot_interface_cvcsrt)
-    target_link_libraries(vot_interface_cvcsrt ${OpenCV_LIBS} ${CMAKE_THREAD_LIBS_INIT} ${TRAX_LIBS})
-elseif (APPLE)
-    add_executable(vot_interface_cvcsrt Run/votInterface_cvcsrt.cpp Run/vot.h)
-    add_sanitizers(vot_interface_cvcsrt)
-    target_link_libraries(vot_interface_cvcsrt ${OpenCV_LIBS}  ${TRAX_LIBS})
-else ()
-    message(FATAL_ERROR, "Unsupported platform.")
-endif ()
+# OpenCV original csrt tracker
+set(OPENCV_CSRT_SOURCE
+        cvcsrt/featureColorName.cpp
+        cvcsrt/trackerCSRT.cpp
+        cvcsrt/trackerCSRTScaleEstimation.cpp
+        cvcsrt/trackerCSRTSegmentation.cpp
+        cvcsrt/trackerCSRTUtils.cpp)
+
+set(OPENCV_CSRT_HEADERS
+        cvcsrt/precomp.hpp
+        cvcsrt/tracker.hpp
+        cvcsrt/trackerCSRTScaleEstimation.hpp
+        cvcsrt/trackerCSRTSegmentation.hpp
+        cvcsrt/trackerCSRTUtils.hpp)
+
+add_library(cvcsrt SHARED
+        ${OPENCV_CSRT_SOURCE}
+        ${OPENCV_CSRT_HEADERS})
+add_sanitizers(cvcsrt)
+target_link_libraries(cvcsrt ${OpenCV_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(vot_interface_cvcsrt Run/votInterface_cvcsrt.cpp Run/vot.h)
+add_sanitizers(vot_interface_cvcsrt)
+target_link_libraries(vot_interface_cvcsrt cvcsrt ${OpenCV_LIBS} ${CMAKE_THREAD_LIBS_INIT}  ${TRAX_LIBS})
+
+# Image resampler test
+add_executable(test_image_resampler Run/testImageResampler.cpp)
+add_sanitizers(test_image_resampler)
+target_link_libraries(test_image_resampler csrt image_resampler ${OpenCV_LIBS})

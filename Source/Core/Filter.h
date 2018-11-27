@@ -17,7 +17,7 @@
 namespace CSRT {
 
 enum class SubpixelDirection {
-	Horizontal = 0, 
+	Horizontal = 0,
 	Vertical
 };
 

@@ -56,7 +56,6 @@ struct TrackerParams {
 	bool UseChannelWeights;	// Use different weights for each channel.
 	bool UseSegmentation;	// Use segmentation for spatial constraint.
 
-	int CellSize;			// Feature extraction cell size.
 	int AdmmIterations;		// Iteration number for optimized filter solver.
 	float Padding;			// Padding used to calculate template size. Affect how much area to search.
 	int TemplateSize;		// Specify the target template size.

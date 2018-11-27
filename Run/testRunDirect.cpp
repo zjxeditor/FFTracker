@@ -63,7 +63,6 @@ int main() {
 	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
-	params.CellSize = 4;
 	params.AdmmIterations = 4;
 	params.Padding = 3.0f;
 	params.TemplateSize = 200;

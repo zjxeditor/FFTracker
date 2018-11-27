@@ -189,7 +189,6 @@ int main() {
 	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
-	params.CellSize = 4;
 	params.AdmmIterations = 4;
 	params.Padding = 3.0f;
 	params.TemplateSize = 200;
@@ -211,7 +210,7 @@ int main() {
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 0;
 	params.UseScale = true;
-	params.UseSmoother = true;
+	params.UseSmoother = false;
 
 	if (produceVideo) {
 		std::string sequenceName = "zjx0_a1b0c1";
@@ -286,9 +285,9 @@ int main() {
 
 			std::cout << std::endl
 				<< "accuracy: " << tracker.Accuracy() << std::endl
-				<< "robustness: " << tracker.Robustness() << std::endl
-				<< "fps: " << tracker.Fps() << std::endl
-				<< "tracked frames: " << tracker.TrackedFrames() << std::endl
+				//<< "robustness: " << tracker.Robustness() << std::endl
+				//<< "fps: " << tracker.Fps() << std::endl
+				//<< "tracked frames: " << tracker.TrackedFrames() << std::endl
 				<< "failed frames: " << tracker.FailedFrames() << std::endl;
 		}
 	}

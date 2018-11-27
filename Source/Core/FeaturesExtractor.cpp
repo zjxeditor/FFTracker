@@ -44,16 +44,24 @@ void FeaturesExtractor::Initialize() {
 //
 
 void FeaturesExtractor::GetFeaturesHOG(const Mat &img, std::vector<MatF> &features, int binSize, MemoryArena *targetArena) {
-	ComputeHOG32D(img, features, binSize, 1, 1, targetArena);
-}
-
-void FeaturesExtractor::ComputeHOG32D(const Mat& img, std::vector<MatF> &features, int sbin, int padx, int pady, MemoryArena *targetArena) {
-	if (padx < 0 || pady < 0 || img.Channels() != 3)
-		Critical("FeaturesExtractor::ComputeHOG32D: cannot computer hog feature on current image.");
-
-	// Convert to MatF.
+    // Convert to MatF.
+    if(img.Channels() != 3)
+        Critical("FeaturesExtractor::GetFeaturesHOG: cannot computer hog feature on current image.");
 	MatF imgM(&GFeatArenas[ThreadIndex]);
 	img.ToMatF(imgM, 1.0f / 255.0f);
+    ComputeHOG32D(imgM, features, binSize, 1, 1, targetArena);
+}
+
+void FeaturesExtractor::GetFeaturesHOG(const MatF &img, std::vector<MatF> &features, int binSize, MemoryArena *targetArena) {
+    // Convert to MatF.
+    if(img.Cols() % 3 != 0)
+        Critical("FeaturesExtractor::GetFeaturesHOG: cannot computer hog feature on current image.");
+    ComputeHOG32D(img, features, binSize, 1, 1, targetArena);
+}
+
+void FeaturesExtractor::ComputeHOG32D(const MatF& imgM, std::vector<MatF> &features, int sbin, int padx, int pady, MemoryArena *targetArena) {
+	if (padx < 0 || pady < 0 || imgM.Cols() % 3 != 0)
+		Critical("FeaturesExtractor::ComputeHOG32D: cannot computer hog feature on current image.");
 
 	static const int dimHOG = HOG_FEATURE_COUNT;		// Feature dimension.
 	static const float eps = 0.0001f;					// Epsilon to avoid division by zero.
@@ -63,7 +71,7 @@ void FeaturesExtractor::ComputeHOG32D(const Mat& img, std::vector<MatF> &feature
 	static const float vv[9] = { 0.000f, 0.3420f, 0.6428f, 0.8660f, 0.9848f,  0.9848f,  0.8660f,  0.6428f,  0.3420f };
 
 	// Mat size.
-	const Vector2i imageSize(img.Cols(), img.Rows());
+	const Vector2i imageSize(imgM.Cols() / 3, imgM.Rows());
 	// Block size.
 	int bW = (int)std::floor((float)imageSize.x / sbin);
 	int bH = (int)std::floor((float)imageSize.y / sbin);
@@ -304,6 +312,7 @@ void FeaturesExtractor::GetFeaturesCN(const Mat &img, std::vector<MatF> &feature
 
 	features.clear();
 	features.resize(10, MatF(targetArena));
+	// Issue: use bicubic interpolation
 	ParallelFor([&](uint64_t index) {
 		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
 	}, 10, 1);
@@ -366,6 +375,7 @@ void FeaturesExtractor::GetFeaturesRGB(const Mat& img, std::vector<MatF>& featur
 
 	features.clear();
 	features.resize(3, MatF(targetArena));
+    // Issue: use bicubic interpolation
 	ParallelFor([&](uint64_t index) {
 		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
 	}, 3, 1);

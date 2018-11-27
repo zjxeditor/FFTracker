@@ -47,8 +47,8 @@ void DSST::Initialize(const MatF &feats, const MatCF &gsfRow) {
 	ResetArenas(true);
 }
 
-void DSST::GetScale(const MatF &feats, const std::vector<float> &scaleFactors, const float &currentScale, 
-	float minScaleFactor, float maxScaleFactor, float &newScale) {
+void DSST::GetScale(const MatF &feats, const std::vector<float> &scaleFactors, const float &currentScale,
+		float minScaleFactor, float maxScaleFactor, float &newScale) {
 	if (!initialized) {
 		Error("DSST::GetScale: DSST is not initialized.");
 		return;
@@ -132,7 +132,7 @@ void DSST::BackgroundUpdate(const MatF& feats) {
 		Critical("DSST::BackgroundUpdate: invalid scale features.");
 		return;
 	}
-	
+
 	// Calculate new filter model.
 	MatCF srf(&arenas[ThreadIndex]);
 	GFFT.FFT2Row(feats, srf);

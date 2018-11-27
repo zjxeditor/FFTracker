@@ -31,6 +31,7 @@ public:
 
 	// Extract 32 dimension HOG features.
 	void GetFeaturesHOG(const Mat &im, std::vector<MatF> &features, int binSize, MemoryArena *targetArena = nullptr);
+	void GetFeaturesHOG(const MatF &im, std::vector<MatF> &features, int binSize, MemoryArena *targetArena = nullptr);
 	// Extract color names features.
 	void GetFeaturesCN(const Mat &img, std::vector<MatF> &features, const Vector2i &OutSize, MemoryArena *targetArena = nullptr);
 	// Extract RGB features.
@@ -57,7 +58,7 @@ public:
 	
 private:
 	// Compute the 32 dimensional hog features.
-	void ComputeHOG32D(const Mat& img, std::vector<MatF> &features, int sbin, int padx, int pady, MemoryArena *targetArena = nullptr);
+	void ComputeHOG32D(const MatF& img, std::vector<MatF> &features, int sbin, int padx, int pady, MemoryArena *targetArena = nullptr);
 
 	// Compute the 32 dimensional hog features for depth map.
 	void ComputeDepthHOG32D(const MatF& depth, std::vector<MatF> &features, int sbin, int padx, int pady, MemoryArena *targetArena = nullptr);

@@ -170,14 +170,14 @@ void Filter::CircShift(const MatF& src, MatF& dest, int dx, int dy) {
 	float *pd = dest.Data();
 	const float *ps = src.Data();
 	for (int y = 0; y < rows; ++y) {
-		int ny = Mod((int)y + dy, rows);
+		int ny = Mod(y + dy, rows);
 		for (int x = 0; x < cols; ++x) {
 			int nx = Mod(x + dx, cols);
 			*(pd + ny * cols + nx) = *(ps++);
 		}
 	}
 }
- 
+
 void Filter::GaussianShapedLabels(MatCF &dest, float sigma, int w, int h) {
 	MatF tempM(h, w, &GFilterArenas[ThreadIndex]);
 	float w2 = (float)(w / 2);

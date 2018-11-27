@@ -1,8 +1,9 @@
-#include <opencv2/core/utility.hpp>
-#include <opencv2/tracking.hpp>
-#include <opencv2/core/mat.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <string>
+//
+// Created by Jx Zhang on 2018/11/26.
+//
+
+#include "opencv2/opencv.hpp"
+#include "../cvcsrt/tracker.hpp"
 
 // Uncomment line below if you want to use rectangles
 #define VOT_RECTANGLE
@@ -13,7 +14,7 @@ using namespace cv;
 
 int main(int argc, char** argv) {
     VOT vot;
-    Ptr<TrackerCSRT> tracker = TrackerCSRT::create();
+    Ptr<cvcsrt::TrackerCSRT> tracker = cvcsrt::TrackerCSRT::create();
     Mat frame;
     Rect2d rect;
 

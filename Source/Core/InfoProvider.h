@@ -55,8 +55,8 @@ public:
 		uint8_t mask, int cellSize, int hogNum, MemoryArena *targetArena = nullptr) const;
 
 	// Modules configuration. Must be configured in order.
-	void ConfigureTargets(int count, int cell, const Vector2i &moveRegion, const std::vector<Bounds2i> &bbs);
-	void ConfigureTracker(float localPadding, int referTemplateSize, float gaussianSigma, 
+	void ConfigureTargets(int count, const Vector2i &moveRegion, const std::vector<Bounds2i> &bbs);
+	void ConfigureTracker(float localPadding, int referTemplateSize, float gaussianSigma,
 		bool channelWeights, int pca, int iteration, float learnRateOfChannel, float learnRateOfFilter,
 		WindowType windowFunc = WindowType::Hann, float chebAttenuation = 45.0f, float kaiserAlpha = 3.75f);
 	void ConfigureDSST(int numberOfScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea);
