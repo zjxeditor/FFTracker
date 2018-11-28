@@ -325,7 +325,6 @@ void InfoProvider::GetTrackFeatures(
 	if (mask & 4) {
 		Mat gray(targetArena), grayResized(targetArena);
 		patch.RGBToGray(gray);
-		// Issue: maybe use bicubic interpolation
 		gray.Resize(grayResized, featureSize.y, featureSize.x);
 		MatF grayFeat(targetArena);
 		grayResized.ToMatF(grayFeat, 1.0f / 255.0f, -0.5f);
@@ -775,25 +774,23 @@ void InfoProvider::SegmentRegion(
 			memcpy(pdest + y, psrc + y, vd.x * sizeof(float));
 		}, vd.y, 32);
 
-		// Binary threshold.
-		float maxValue;
-		Vector2i maxLoc;
-		filterMasks[index].MaxLoc(maxValue, maxLoc);
-		maxValue /= 2.0f;
-		ParallelFor([&](int64_t i) {
-			if (pdest[i] > maxValue) pdest[i] = 1.0f;
-			else pdest[i] = 0.0f;
-		}, filterMasks[index].Size(), 2048);
+        // Binary threshold.
+        float maxValue;
+        Vector2i maxLoc;
+        filterMasks[index].MaxLoc(maxValue, maxLoc);
+        maxValue /= 2.0f;
+        ParallelFor([&](int64_t i) {
+            if (pdest[i] > maxValue) pdest[i] = 1.0f;
+            else pdest[i] = 0.0f;
+        }, filterMasks[index].Size(), 2048);
 	}
 
 	int rows = yf.Rows();
 	int cols = yf.Cols();
-	// Issue: condider nearest resize.
 	std::vector<MatF> resizedFilterMasks(targetCount, &GInfoArenas[ThreadIndex]);
 	ParallelFor([&](int64_t index) {
-		filterMasks[index].Resize(resizedFilterMasks[index], rows, cols);
+		filterMasks[index].Resize(resizedFilterMasks[index], rows, cols, false);
 		if (CheckMaskArea(resizedFilterMasks[index], defaultMaskAreas[index]))
-			// Issue: consider use -inf border value for dilation
 		    GFilter.Dilate2D(resizedFilterMasks[index], erodeKernel, filterMasks[index], BorderType::Zero);
 		else
 			filterMasks[index] = defaultMasks[index];

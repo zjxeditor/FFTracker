@@ -5,6 +5,7 @@
 #include "Mat.h"
 #include "Parallel.h"
 #include "Memory.h"
+#include <unordered_map>
 
 namespace CSRT {
 
@@ -13,6 +14,10 @@ static MemoryArena GImgLoadArena;
 
 //Image resize arena. Each threads acces it own arena. Automatically reseted.
 static MemoryArena *GImgResizeArenas = nullptr;
+static MemoryArena *GImgResizeArenasL2 = nullptr;
+
+std::unordered_map<std::string, void*> HResizer;
+std::mutex HMutex;
 
 //
 // ImageMemoryArena Implementation
@@ -31,17 +36,24 @@ ImageMemoryArena::ImageMemoryArena() : initialized(false) {
 }
 
 ImageMemoryArena::~ImageMemoryArena() {
+	HResizer.clear();
 	if (GImgResizeArenas) {
 		delete[] GImgResizeArenas;
 		GImgResizeArenas = nullptr;
 	}
+    if (GImgResizeArenasL2) {
+        delete[] GImgResizeArenasL2;
+        GImgResizeArenasL2 = nullptr;
+    }
 	SingleInstance = false;
 }
 
 void ImageMemoryArena::Initialize() {
 	if (initialized) return;
 	initialized = true;
+	HResizer.clear();
 	GImgResizeArenas = new MemoryArena[MaxThreadIndex()];
+    GImgResizeArenasL2 = new MemoryArena[MaxThreadIndex()];
 }
 
 void ImageMemoryArena::ResetImgLoadArena() {
@@ -95,21 +107,14 @@ const double FRACTION_ROUND_TERM = 0.5 / FRACTION_RANGE;
 
 template<typename T>
 struct Buffer {
-	Buffer(int width, int height) {
-		pint = GImgResizeArenas[ThreadIndex].Alloc<int>(width + height, false);
-		pfloat = GImgResizeArenas[ThreadIndex].Alloc<float>(width + height, false);
-		pT = GImgResizeArenas[ThreadIndex].Alloc<T>(width * 2, false);
-
-		ix = pint;
-		iy = pint + width;
-		ax = pfloat;
-		ay = ax + width;
+	Buffer(int width) : ix(nullptr), ax(nullptr), iy(nullptr), ay(nullptr) {
+		pT = GImgResizeArenasL2[ThreadIndex].Alloc<T>(width * 2, false);
 		pbx[0] = pT;
 		pbx[1] = pT + width;
 	}
 
 	~Buffer() {
-		GImgResizeArenas[ThreadIndex].Reset();
+		GImgResizeArenasL2[ThreadIndex].Reset();
 	}
 
 	int *ix;
@@ -118,9 +123,28 @@ struct Buffer {
 	float *ay;
 	T *pbx[2];
 private:
-	int *pint;
-	float *pfloat;
 	T *pT;
+};
+
+template<typename T>
+struct BufferNearest {
+    BufferNearest(int width) : ix(nullptr), ax(nullptr), iy(nullptr), ay(nullptr) {
+        pT = GImgResizeArenasL2[ThreadIndex].Alloc<T>(width * 2, false);
+        pbx[0] = pT;
+        pbx[1] = pT + width;
+    }
+
+    ~BufferNearest() {
+        GImgResizeArenasL2[ThreadIndex].Reset();
+    }
+
+    int *ix;
+    float *ax;
+    int *iy;
+    float *ay;
+    T *pbx[2];
+private:
+    T *pT;
 };
 
 void EstimateAlphaIndex(int srcSize, int dstSize, int *indexes, float *alphas, int channelCount) {
@@ -152,9 +176,30 @@ void ResizeBilinear(
 	const T *src, int srcWidth, int srcHeight, int srcStride,
 	T *dst, int dstWidth, int dstHeight, int dstStride, int channelCount) {
 	int dstRowSize = channelCount * dstWidth;
-	Buffer<T> buffer(dstRowSize, dstHeight);
-	EstimateAlphaIndex(srcHeight, dstHeight, buffer.iy, buffer.ay, 1);
-	EstimateAlphaIndex(srcWidth, dstWidth, buffer.ix, buffer.ax, channelCount);
+	Buffer<T> buffer(dstRowSize);
+
+	std::string key0 = StringPrintf("f%ds%dd%dc", srcHeight, dstHeight, 1);
+	std::string key1 = StringPrintf("f%ds%dd%dc", srcWidth, dstWidth, channelCount);
+	HMutex.lock();
+	if(HResizer.find(key0) != HResizer.end()) {
+		buffer.iy = reinterpret_cast<int*>(HResizer[key0]);
+		buffer.ay = reinterpret_cast<float*>(buffer.iy + dstHeight);
+	} else {
+		HResizer[key0] = reinterpret_cast<void*>(GImgResizeArenas[ThreadIndex].Alloc(dstHeight * (sizeof(int) + sizeof(float))));
+		buffer.iy = reinterpret_cast<int*>(HResizer[key0]);
+		buffer.ay = reinterpret_cast<float*>(buffer.iy + dstHeight);
+		EstimateAlphaIndex(srcHeight, dstHeight, buffer.iy, buffer.ay, 1);
+	}
+	if(HResizer.find(key1) != HResizer.end()) {
+		buffer.ix = reinterpret_cast<int*>(HResizer[key1]);
+		buffer.ax = reinterpret_cast<float*>(buffer.ix + dstRowSize);
+	} else {
+		HResizer[key1] = reinterpret_cast<void*>(GImgResizeArenas[ThreadIndex].Alloc(dstRowSize * (sizeof(int) + sizeof(float))));
+		buffer.ix = reinterpret_cast<int*>(HResizer[key1]);
+		buffer.ax = reinterpret_cast<float*>(buffer.ix + dstRowSize);
+		EstimateAlphaIndex(srcWidth, dstWidth, buffer.ix, buffer.ax, channelCount);
+	}
+	HMutex.unlock();
 
 	int previous = -2;
 	for (int yDst = 0; yDst < dstHeight; yDst++, dst += dstStride) {
@@ -194,20 +239,82 @@ void ResizeBilinear(
 	}
 }
 
+template<typename T>
+void ResizeNearest(
+        const T *src, int srcWidth, int srcHeight, int srcStride,
+        T *dst, int dstWidth, int dstHeight, int dstStride, int channelCount) {
+    int dstRowSize = channelCount * dstWidth;
+    BufferNearest<T> buffer(dstRowSize);
+
+    std::string key0 = StringPrintf("f%ds%dd%dc", srcHeight, dstHeight, 1);
+    std::string key1 = StringPrintf("f%ds%dd%dc", srcWidth, dstWidth, channelCount);
+    HMutex.lock();
+    if(HResizer.find(key0) != HResizer.end()) {
+        buffer.iy = reinterpret_cast<int*>(HResizer[key0]);
+        buffer.ay = reinterpret_cast<float*>(buffer.iy + dstHeight);
+    } else {
+        HResizer[key0] = reinterpret_cast<void*>(GImgResizeArenas[ThreadIndex].Alloc(dstHeight * (sizeof(int) + sizeof(float))));
+        buffer.iy = reinterpret_cast<int*>(HResizer[key0]);
+        buffer.ay = reinterpret_cast<float*>(buffer.iy + dstHeight);
+        EstimateAlphaIndex(srcHeight, dstHeight, buffer.iy, buffer.ay, 1);
+    }
+    if(HResizer.find(key1) != HResizer.end()) {
+        buffer.ix = reinterpret_cast<int*>(HResizer[key1]);
+        buffer.ax = reinterpret_cast<float*>(buffer.ix + dstRowSize);
+    } else {
+        HResizer[key1] = reinterpret_cast<void*>(GImgResizeArenas[ThreadIndex].Alloc(dstRowSize * (sizeof(int) + sizeof(float))));
+        buffer.ix = reinterpret_cast<int*>(HResizer[key1]);
+        buffer.ax = reinterpret_cast<float*>(buffer.ix + dstRowSize);
+        EstimateAlphaIndex(srcWidth, dstWidth, buffer.ix, buffer.ax, channelCount);
+    }
+    HMutex.unlock();
+
+    int previous = -2;
+    for (int yDst = 0; yDst < dstHeight; yDst++, dst += dstStride) {
+        float fy = buffer.ay[yDst];
+        int sy = buffer.iy[yDst];
+        int k = 0;
+
+        if (sy == previous)
+            k = 2;
+        else if (sy == previous + 1) {
+            std::swap(buffer.pbx[0], buffer.pbx[1]);
+            k = 1;
+        }
+        previous = sy;
+
+        for (; k < 2; k++) {
+            T *pb = buffer.pbx[k];
+            const T* ps = src + (sy + k)*srcStride;
+            for (int x = 0; x < dstRowSize; x++) {
+                int sx = buffer.ix[x];
+                float fx = buffer.ax[x];
+                pb[x] = fx > 0.5f ? ps[sx + channelCount] : ps[sx];
+            }
+        }
+
+        if (fy == 0)
+            memcpy(dst, buffer.pbx[0], dstRowSize * sizeof(T));
+        else if (fy == 1.0f)
+            memcpy(dst, buffer.pbx[1], dstRowSize * sizeof(T));
+        else {
+            for (int xDst = 0; xDst < dstRowSize; xDst++) {
+                dst[xDst] = fy > 0.5f ? buffer.pbx[1][xDst] : buffer.pbx[0][xDst];
+            }
+        }
+    }
+}
+
 template<>
 struct Buffer<uint8_t> {
-	Buffer(int width, int height) {
-		_p = GImgResizeArenas[ThreadIndex].Alloc<int>(2 * (2 * width + height), false);
-		ix = _p;
-		ax = ix + width;
-		iy = ax + width;
-		ay = iy + height;
-		pbx[0] = ay + height;
+	Buffer(int width) : ix(nullptr), ax(nullptr), iy(nullptr), ay(nullptr) {
+		_p = GImgResizeArenasL2[ThreadIndex].Alloc<int>(2 * width, false);
+		pbx[0] = _p;
 		pbx[1] = pbx[0] + width;
 	}
 
 	~Buffer() {
-		GImgResizeArenas[ThreadIndex].Reset();
+		GImgResizeArenasL2[ThreadIndex].Reset();
 	}
 
 	int *ix;
@@ -248,9 +355,30 @@ void ResizeBilinear<uint8_t>(
 	const uint8_t *src, int srcWidth, int srcHeight, int srcStride,
 	uint8_t *dst, int dstWidth, int dstHeight, int dstStride, int channelCount) {
 	int dstRowSize = channelCount * dstWidth;
-	Buffer<uint8_t> buffer(dstRowSize, dstHeight);
-	EstimateAlphaIndex_uint8_t(srcHeight, dstHeight, buffer.iy, buffer.ay, 1);
-	EstimateAlphaIndex_uint8_t(srcWidth, dstWidth, buffer.ix, buffer.ax, channelCount);
+	Buffer<uint8_t> buffer(dstRowSize);
+
+	std::string key0 = StringPrintf("i%ds%dd%dc", srcHeight, dstHeight, 1);
+	std::string key1 = StringPrintf("i%ds%dd%dc", srcWidth, dstWidth, channelCount);
+	HMutex.lock();
+	if(HResizer.find(key0) != HResizer.end()) {
+		buffer.iy = reinterpret_cast<int*>(HResizer[key0]);
+		buffer.ay = buffer.iy + dstHeight;
+	} else {
+		HResizer[key0] = reinterpret_cast<void*>(GImgResizeArenas[ThreadIndex].Alloc(dstHeight * 2 * sizeof(int)));
+		buffer.iy = reinterpret_cast<int*>(HResizer[key0]);
+		buffer.ay = buffer.iy + dstHeight;
+		EstimateAlphaIndex_uint8_t(srcHeight, dstHeight, buffer.iy, buffer.ay, 1);
+	}
+	if(HResizer.find(key1) != HResizer.end()) {
+		buffer.ix = reinterpret_cast<int*>(HResizer[key1]);
+		buffer.ax = buffer.ix + dstRowSize;
+	} else {
+		HResizer[key1] = reinterpret_cast<void*>(GImgResizeArenas[ThreadIndex].Alloc(dstRowSize * 2 * sizeof(int)));
+		buffer.ix = reinterpret_cast<int*>(HResizer[key1]);
+		buffer.ax = buffer.ix + dstRowSize;
+		EstimateAlphaIndex_uint8_t(srcWidth, dstWidth, buffer.ix, buffer.ax, channelCount);
+	}
+	HMutex.unlock();
 
 	int previous = -2;
 	for (int yDst = 0; yDst < dstHeight; yDst++, dst += dstStride) {
@@ -523,18 +651,28 @@ void Mat::Merge(const std::vector<Mat> &mats) {
 	}
 }
 
-void Mat::Resize(Mat &dest, float sr, float sc) const {
+void Mat::Resize(Mat &dest, float sr, float sc, bool nearest) const {
 	int trows = (int)(rows * sr);
 	int tcols = (int)(cols * sc);
 	dest.Reshape(trows, tcols, channels, false);
-	ResizeBilinear(data, cols, rows, cols * channels,
-		dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+	if(nearest) {
+		ResizeNearest(data, cols, rows, cols * channels,
+		  dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+	} else {
+		ResizeBilinear(data, cols, rows, cols * channels,
+		   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+	}
 }
 
-void Mat::Resize(Mat &dest, int tr, int tc) const {
+void Mat::Resize(Mat &dest, int tr, int tc, bool nearest) const {
 	dest.Reshape(tr, tc, channels, false);
-	ResizeBilinear(data, cols, rows, cols * channels,
-		dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+	if(nearest) {
+		ResizeNearest(data, cols, rows, cols * channels,
+		   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+	} else {
+		ResizeBilinear(data, cols, rows, cols * channels,
+		   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+	};
 }
 
 void Mat::RGBToHSV(Mat &dest) const {
@@ -1121,33 +1259,37 @@ void MatF::Merge(const std::vector<MatF> &mats) {
 	}
 }
 
-void MatF::Resize(MatF &dest, float sr, float sc) const {
+void MatF::Resize(MatF &dest, float sr, float sc, bool nearest) const {
 	int trows = (int)(rows * sr);
 	int tcols = (int)(cols * sc);
 	dest.Reshape(trows, tcols, false);
-	ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+	if(nearest) ResizeNearest(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+	else ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
 }
 
-void MatF::Resize(MatF &dest, int tr, int tc) const {
+void MatF::Resize(MatF &dest, int tr, int tc, bool nearest) const {
 	dest.Reshape(tr, tc, false);
-	ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+	if(nearest) ResizeNearest(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+	else ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
 }
 
-void MatF::Resize(MatF &dest, float sr, float sc, int channels) const {
+void MatF::Resize(MatF &dest, float sr, float sc, int channels, bool nearest) const {
 	if (cols % channels != 0)
 		Critical("MatF::Resize: cannot resize for target channel number.");
 	int ocols = cols / channels;
 	int trows = (int)(rows * sr);
 	int tcols = (int)(ocols * sc);
 	dest.Reshape(trows, tcols * channels, false);
-	ResizeBilinear(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
+	if(nearest) ResizeNearest(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
+	else ResizeBilinear(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
 }
 
-void MatF::Resize(MatF &dest, int tr, int tc, int channels) const {
+void MatF::Resize(MatF &dest, int tr, int tc, int channels, bool nearest) const {
 	if (cols % channels != 0)
 		Critical("MatF::Resize: cannot resize for target channel number.");
 	dest.Reshape(tr, tc * channels, false);
-	ResizeBilinear(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
+	if(nearest) ResizeNearest(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
+	else ResizeBilinear(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
 }
 
 void MatF::ToMat(Mat& dest, int channels, float scale, float offset) const {

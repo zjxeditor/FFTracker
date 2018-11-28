@@ -312,7 +312,6 @@ void FeaturesExtractor::GetFeaturesCN(const Mat &img, std::vector<MatF> &feature
 
 	features.clear();
 	features.resize(10, MatF(targetArena));
-	// Issue: use bicubic interpolation
 	ParallelFor([&](uint64_t index) {
 		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
 	}, 10, 1);
@@ -375,7 +374,6 @@ void FeaturesExtractor::GetFeaturesRGB(const Mat& img, std::vector<MatF>& featur
 
 	features.clear();
 	features.resize(3, MatF(targetArena));
-    // Issue: use bicubic interpolation
 	ParallelFor([&](uint64_t index) {
 		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
 	}, 3, 1);

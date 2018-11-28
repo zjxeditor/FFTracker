@@ -359,7 +359,6 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 		GFilter.GetSubWindow(rgbImage, orgPatch, GInfoProvider.currentPositions[i],
 			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
 			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
-		// Issue: consider use bicubic interpolation
 		orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
 		GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -508,7 +507,6 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 		GFilter.GetSubWindow(rgbImage, orgPatch, GInfoProvider.currentPositions[i],
 			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
 			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
-		// Issue: consider use bicubic interpolation
 		orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
 		GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -577,7 +575,6 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 			GFilter.GetSubWindow(rgbImage, orgPatch, GInfoProvider.currentPositions[i],
 				(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
 				(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
-			// Issue: consider use bicubic interpolation
 			orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
 			GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 				GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);

@@ -111,8 +111,8 @@ public:
 
 	void Split(std::vector<Mat> &mats, MemoryArena *targetArena = nullptr) const;
 	void Merge(const std::vector<Mat> &mats);
-	void Resize(Mat &dest, float sr, float sc) const;
-	void Resize(Mat &dest, int tr, int tc) const;
+	void Resize(Mat &dest, float sr, float sc, bool nearest = false) const;
+	void Resize(Mat &dest, int tr, int tc, bool nearest = false) const;
 
 	// Convert from rgb space to hsv space. All value are between [0, 255].
 	void RGBToHSV(Mat &dest) const;
@@ -191,10 +191,10 @@ public:
 
 	void Split(std::vector<MatF> &mats, int channels, MemoryArena *targetArena = nullptr) const;
 	void Merge(const std::vector<MatF> &mats);
-	void Resize(MatF &dest, float sr, float sc) const;
-	void Resize(MatF &dest, int tr, int tc) const;
-	void Resize(MatF &dest, float sr, float sc, int channels) const;
-	void Resize(MatF &dest, int tr, int tc, int channels) const;
+	void Resize(MatF &dest, float sr, float sc, bool nearest = false) const;
+	void Resize(MatF &dest, int tr, int tc, bool nearest = false) const;
+	void Resize(MatF &dest, float sr, float sc, int channels, bool nearest = false) const;
+	void Resize(MatF &dest, int tr, int tc, int channels, bool nearest = false) const;
 
 	// Convert from float type to unsigned char type.
 	void ToMat(Mat &dest, int channels = 1, float scale = 1.0f, float offset = 0.0f) const;
