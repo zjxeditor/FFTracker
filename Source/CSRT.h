@@ -62,6 +62,9 @@
 // Pre-defined hog feature count. Optimize the hog computation method. Choose 18, 27, 31 or 32. 
 #define HOG_FEATURE_COUNT 18
 
+// With the help of OpenCV
+//#define WITH_OPENCV
+
 namespace CSRT {
 
 template<typename T>

@@ -7,6 +7,10 @@
 #include "../Utility/Memory.h"
 #include "../Utility/FFT.h"
 
+#ifdef WITH_OPENCV
+#include <opencv2/opencv.hpp>
+#endif
+
 namespace CSRT {
 
 using namespace Eigen;
@@ -215,11 +219,11 @@ void Filter::DivideComplexMatrices(const MatCF& A, const MatCF& B, MatCF& dest, 
 	int cols = A.Cols();
 	dest.Reshape(rows, cols, false);
 
-	const ComplexF *pa = A.Data();
-	const ComplexF *pb = B.Data();
-	ComplexF *pd = dest.Data();
-	for (int index = 0; index < A.Size(); ++index)
-		*(pd++) = *(pa++) / (*(pb++) + boff);
+    const ComplexF *pa = A.Data();
+    const ComplexF *pb = B.Data();
+    ComplexF *pd = dest.Data();
+    for (int index = 0; index < A.Size(); ++index)
+        *(pd++) = *(pa++) / (*(pb++) + boff);
 }
 
 void Filter::MulSpectrums(const MatCF& A, const MatCF& B, MatCF& dest, bool conjB) {
@@ -241,8 +245,8 @@ void Filter::MulSpectrums(const MatCF& A, const MatCF& B, MatCF& dest, bool conj
 }
 
 void Filter::GetSubWindow(const Mat& inM, Mat& outM, const Vector2i& center, int w, int h, Bounds2i* validBounds) {
-	int startx = center.x - w / 2;
-	int starty = center.y - h / 2;
+    int startx = center.x - w / 2;
+    int starty = center.y - h / 2;
 	Bounds2i roi(startx, starty, w, h);
 	int padding_left = 0, padding_right = 0, padding_top = 0, padding_bottom = 0;
 	if (roi.pMin.x < 0) {
@@ -275,8 +279,8 @@ void Filter::GetSubWindow(const Mat& inM, Mat& outM, const Vector2i& center, int
 }
 
 void Filter::GetSubWindow(const MatF& inM, MatF& outM, const Vector2i& center, int w, int h, Bounds2i* validBounds) {
-	int startx = center.x - w / 2;
-	int starty = center.y - h / 2;
+    int startx = center.x - w / 2;
+    int starty = center.y - h / 2;
 	Bounds2i roi(startx, starty, w, h);
 	int padding_left = 0, padding_right = 0, padding_top = 0, padding_bottom = 0;
 	if (roi.pMin.x < 0) {
@@ -309,8 +313,8 @@ void Filter::GetSubWindow(const MatF& inM, MatF& outM, const Vector2i& center, i
 }
 
 void Filter::GetSubWindow(const MatCF& inM, MatCF& outM, const Vector2i& center, int w, int h, Bounds2i* validBounds) {
-	int startx = center.x - w / 2;
-	int starty = center.y - h / 2;
+    int startx = center.x - w / 2;
+    int starty = center.y - h / 2;
 	Bounds2i roi(startx, starty, w, h);
 	int padding_left = 0, padding_right = 0, padding_top = 0, padding_bottom = 0;
 	if (roi.pMin.x < 0) {
@@ -390,6 +394,27 @@ void Filter::Correlation2D(const MatF &inM, const MatF &kernelM, MatF &outM, Bor
 	int colbound = cols - 1;
 	outM.Reshape(rows, cols);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC1, inM.Data());
+	cv::Mat cvDstM(rows, cols, CV_32FC1, outM.Data());
+	cv::Mat cvKernelM(krows, kcols, CV_32FC1, kernelM.Data());
+	int border = cv::BORDER_REFLECT;
+	switch(borderType){
+		case BorderType::Replicate:
+			border = cv::BORDER_REPLICATE;
+			break;
+		case BorderType::Wrap:
+			border = cv::BORDER_WRAP;
+			break;
+		case BorderType::Zero:
+			border = cv::BORDER_CONSTANT;
+			break;
+		default:
+			border = cv::BORDER_REFLECT;
+			break;
+	}
+	cv::filter2D(cvOrgM, cvDstM, -1, cvKernelM, cv::Point(-1, -1), 0, border);
+#else
 	const float *psrc = inM.Data();
 	float *pdest = outM.Data();
 
@@ -465,9 +490,10 @@ void Filter::Correlation2D(const MatF &inM, const MatF &kernelM, MatF &outM, Bor
 	default:
 		Critical("Filter::Correlation2D: unknown border type.");
 	}
+#endif
 }
 
-void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderType borderType) {
+void Filter::Dilate2D(const MatF &inM, const Mat &kernelM, MatF &outM, BorderType borderType) {
 	int krows = kernelM.Rows();
 	int kcols = kernelM.Cols();
 	if (krows % 2 == 0 || kcols % 2 == 0) {
@@ -482,6 +508,27 @@ void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTy
 	int colbound = cols - 1;
 	outM.Reshape(rows, cols);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC1, inM.Data());
+	cv::Mat cvDstM(rows, cols, CV_32FC1, outM.Data());
+	cv::Mat cvKernelM(krows, kcols, CV_8UC1, kernelM.Data());
+	int border = cv::BORDER_REFLECT;
+	switch(borderType){
+		case BorderType::Replicate:
+			border = cv::BORDER_REPLICATE;
+			break;
+		case BorderType::Wrap:
+			border = cv::BORDER_WRAP;
+			break;
+		case BorderType::Zero:
+			border = cv::BORDER_CONSTANT;
+			break;
+		default:
+			border = cv::BORDER_REFLECT;
+			break;
+	}
+	cv::dilate(cvOrgM, cvDstM, cvKernelM, cv::Point(-1, -1), 1, border);
+#else
 	const float *psrc = inM.Data();
 	float *pdest = outM.Data();
 
@@ -489,14 +536,14 @@ void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTy
 	case BorderType::Zero:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						if (idy < 0 || idy >= rows) continue;
 						if (idx < 0 || idx >= cols) continue;
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::max(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -507,14 +554,14 @@ void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTy
 	case BorderType::Replicate:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						idy = Clamp(idy, 0, rowbound);
 						idx = Clamp(idx, 0, colbound);
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::max(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -525,14 +572,14 @@ void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTy
 	case BorderType::Reflect:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						if (idy < 0 || idy >= rows) idy = ReflectIndex(idy, rows);
 						if (idx < 0 || idx >= cols) idx = ReflectIndex(idx, cols);
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::max(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -543,14 +590,14 @@ void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTy
 	case BorderType::Wrap:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						if (idy < 0 || idy >= rows) idy = WrapIndex(idy, rows);
 						if (idx < 0 || idx >= cols) idx = WrapIndex(idx, cols);
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::max(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -561,9 +608,10 @@ void Filter::Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTy
 	default:
 		Critical("Filter::Dilate2D: unknown border type.");
 	}
+#endif
 }
 
-void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderType borderType) {
+void Filter::Erode2D(const MatF &inM, const Mat &kernelM, MatF &outM, BorderType borderType) {
 	int krows = kernelM.Rows();
 	int kcols = kernelM.Cols();
 	if (krows % 2 == 0 || kcols % 2 == 0) {
@@ -578,6 +626,27 @@ void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTyp
 	int colbound = cols - 1;
 	outM.Reshape(rows, cols);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC1, inM.Data());
+	cv::Mat cvDstM(rows, cols, CV_32FC1, outM.Data());
+	cv::Mat cvKernelM(krows, kcols, CV_8UC1, kernelM.Data());
+	int border = cv::BORDER_REFLECT;
+	switch(borderType){
+		case BorderType::Replicate:
+			border = cv::BORDER_REPLICATE;
+			break;
+		case BorderType::Wrap:
+			border = cv::BORDER_WRAP;
+			break;
+		case BorderType::Zero:
+			border = cv::BORDER_CONSTANT;
+			break;
+		default:
+			border = cv::BORDER_REFLECT;
+			break;
+	}
+	cv::erode(cvOrgM, cvDstM, cvKernelM, cv::Point(-1, -1), 1, border);
+#else
 	const float *psrc = inM.Data();
 	float *pdest = outM.Data();
 
@@ -585,14 +654,14 @@ void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTyp
 	case BorderType::Zero:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						if (idy < 0 || idy >= rows) continue;
 						if (idx < 0 || idx >= cols) continue;
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::min(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -603,14 +672,14 @@ void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTyp
 	case BorderType::Replicate:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						idy = Clamp(idy, 0, rowbound);
 						idx = Clamp(idx, 0, colbound);
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::min(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -621,14 +690,14 @@ void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTyp
 	case BorderType::Reflect:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						if (idy < 0 || idy >= rows) idy = ReflectIndex(idy, rows);
 						if (idx < 0 || idx >= cols) idx = ReflectIndex(idx, cols);
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::min(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -639,14 +708,14 @@ void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTyp
 	case BorderType::Wrap:
 		for (int y = 0; y < rows; ++y) {
 			for (int x = 0; x < cols; ++x) {
-				const float *pkernel = kernelM.Data();
+				const uint8_t *pkernel = kernelM.Data();
 				for (int ky = -halfkr; ky <= halfkr; ++ky) {
 					for (int kx = -halfkc; kx <= halfkc; ++kx) {
 						int idy = y + ky;
 						int idx = x + kx;
 						if (idy < 0 || idy >= rows) idy = WrapIndex(idy, rows);
 						if (idx < 0 || idx >= cols) idx = WrapIndex(idx, cols);
-						if (*(pkernel++) <= 0.001f) continue;
+						if (*(pkernel++) == 0) continue;
 						*pdest = std::min(*pdest, *(psrc + idy * cols + idx));
 					}
 				}
@@ -657,6 +726,7 @@ void Filter::Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderTyp
 	default:
 		Critical("Filter::Erode2D: unknown border type.");
 	}
+#endif
 }
 
 }	// namespace CSRT

@@ -47,8 +47,8 @@ void FeaturesExtractor::GetFeaturesHOG(const Mat &img, std::vector<MatF> &featur
     // Convert to MatF.
     if(img.Channels() != 3)
         Critical("FeaturesExtractor::GetFeaturesHOG: cannot computer hog feature on current image.");
-	MatF imgM(&GFeatArenas[ThreadIndex]);
-	img.ToMatF(imgM, 1.0f / 255.0f);
+    MatF imgM(&GFeatArenas[ThreadIndex]);
+    img.ToMatF(imgM, 1.0f / 255.0f);
     ComputeHOG32D(imgM, features, binSize, 1, 1, targetArena);
 }
 
@@ -303,7 +303,7 @@ void FeaturesExtractor::GetFeaturesCN(const Mat &img, std::vector<MatF> &feature
 		float *dest[10];
 		for (int i = 0; i < 10; ++i) dest[i] = tempMats[i].Data() + featStride * y;
 		for (int x = 0; x < imSize.x; ++x) {
-			int index = (int)(std::floor((float)src[0] / 8) + 32 * std::floor((float)src[1] / 8) + 32 * 32 * std::floor((float)src[2] / 8));
+			int index = (int)(std::floor((float)src[2] / 8) + 32 * std::floor((float)src[1] / 8) + 32 * 32 * std::floor((float)src[0] / 8));
 			src += 3;
 			for (int k = 0; k < 10; k++)
 				*(dest[k]++) = ColorNames[index][k];
@@ -313,7 +313,7 @@ void FeaturesExtractor::GetFeaturesCN(const Mat &img, std::vector<MatF> &feature
 	features.clear();
 	features.resize(10, MatF(targetArena));
 	ParallelFor([&](uint64_t index) {
-		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
+		tempMats[index].Resize(features[index], OutSize.y, OutSize.x, ResizeMode::Bicubic);
 	}, 10, 1);
 
 	GFeatArenas[ThreadIndex].Reset();
@@ -375,7 +375,7 @@ void FeaturesExtractor::GetFeaturesRGB(const Mat& img, std::vector<MatF>& featur
 	features.clear();
 	features.resize(3, MatF(targetArena));
 	ParallelFor([&](uint64_t index) {
-		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
+		tempMats[index].Resize(features[index], OutSize.y, OutSize.x, ResizeMode::Bicubic);
 	}, 3, 1);
 
 	GFeatArenas[ThreadIndex].Reset();

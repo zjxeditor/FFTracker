@@ -7,6 +7,10 @@
 #include "Memory.h"
 #include <unordered_map>
 
+#ifdef WITH_OPENCV
+#include <opencv2/opencv.hpp>
+#endif
+
 namespace CSRT {
 
 // Image loading arena. Manually reseted.
@@ -59,6 +63,10 @@ void ImageMemoryArena::Initialize() {
 void ImageMemoryArena::ResetImgLoadArena() {
 	GImgLoadArena.Reset();
 }
+
+#ifdef WITH_OPENCV
+cv::Mat cvImgReadM;
+#endif
 
 }	// namespace CSRT
 
@@ -434,10 +442,20 @@ Mat::Mat(int rowNum, int colNum, int channelNum, MemoryArena *storage)
 
 Mat::Mat(const std::string& filePath)
 	: rows(0), cols(0), channels(0), arena(&GImgLoadArena), data(nullptr) {
+#ifdef WITH_OPENCV
+    cvImgReadM = cv::imread(filePath);
+	rows = cvImgReadM.rows;
+	cols = cvImgReadM.cols;
+	channels = cvImgReadM.channels();
+	size = rows * cols * channels;
+	data = GImgLoadArena.Alloc<uint8_t>(size);
+	memcpy(data, cvImgReadM.data, size * sizeof(uint8_t));
+#else
 	data = stbi_load(filePath.c_str(), &cols, &rows, &channels, 0);
 	size = rows * cols * channels;
 	if (data == nullptr)
 		Critical("Mat load failed for file: " + filePath + stbi_failure_reason());
+#endif
 }
 
 Mat::Mat(const uint8_t *sourceData, int rowNum, int colNum, int channelNum, MemoryArena *storage)
@@ -651,28 +669,64 @@ void Mat::Merge(const std::vector<Mat> &mats) {
 	}
 }
 
-void Mat::Resize(Mat &dest, float sr, float sc, bool nearest) const {
+void Mat::Resize(Mat &dest, float sr, float sc, ResizeMode mode) const {
 	int trows = (int)(rows * sr);
 	int tcols = (int)(cols * sc);
 	dest.Reshape(trows, tcols, channels, false);
-	if(nearest) {
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_8UC(channels), data);
+	cv::Mat cvDstM(trows, tcols, CV_8UC(channels), dest.data);
+	int interp = cv::INTER_LINEAR;
+	switch (mode) {
+		case ResizeMode::Bicubic:
+			interp = cv::INTER_CUBIC;
+			break;
+		case ResizeMode::Nearest:
+			interp = cv::INTER_NEAREST;
+			break;
+		default:
+			interp = cv::INTER_LINEAR;
+			break;
+	}
+	cv::resize(cvOrgM, cvDstM, cv::Size(tcols, trows), 0, 0, interp);
+#else
+	if(mode == ResizeMode::Nearest) {
 		ResizeNearest(data, cols, rows, cols * channels,
 		  dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
 	} else {
 		ResizeBilinear(data, cols, rows, cols * channels,
 		   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
 	}
+#endif
 }
 
-void Mat::Resize(Mat &dest, int tr, int tc, bool nearest) const {
+void Mat::Resize(Mat &dest, int tr, int tc, ResizeMode mode) const {
 	dest.Reshape(tr, tc, channels, false);
-	if(nearest) {
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_8UC(channels), data);
+	cv::Mat cvDstM(tr, tc, CV_8UC(channels), dest.data);
+	int interp = cv::INTER_LINEAR;
+	switch (mode) {
+		case ResizeMode::Bicubic:
+			interp = cv::INTER_CUBIC;
+			break;
+		case ResizeMode::Nearest:
+			interp = cv::INTER_NEAREST;
+			break;
+		default:
+			interp = cv::INTER_LINEAR;
+			break;
+	}
+	cv::resize(cvOrgM, cvDstM, cv::Size(tc, tr), 0, 0, interp);
+#else
+	if(mode == ResizeMode::Nearest) {
 		ResizeNearest(data, cols, rows, cols * channels,
-		   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+					  dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
 	} else {
 		ResizeBilinear(data, cols, rows, cols * channels,
-		   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
+					   dest.data, dest.cols, dest.rows, dest.cols * dest.channels, channels);
 	};
+#endif
 }
 
 void Mat::RGBToHSV(Mat &dest) const {
@@ -680,6 +734,15 @@ void Mat::RGBToHSV(Mat &dest) const {
 		Critical("Mat::RGBToHSV: only 3 channels rgb image data can be converted to hsv.");
 	dest.Reshape(rows, cols, 3);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_8UC3, data);
+	cv::Mat cvDstM(rows, cols, CV_8UC3, dest.data);
+	cv::cvtColor(cvOrgM, cvDstM, cv::COLOR_BGR2HSV);
+	uint8_t *pdest = dest.data;
+	for(int i = 0; i < dest.size; i += 3) {
+	    pdest[i] *= Clamp(pdest[i] * (255.0f / 180.0f), 0, 255);
+	}
+#else
 	const uint8_t *source = data;
 	uint8_t *destination = dest.data;
 	ParallelFor([&](int64_t i) {
@@ -719,6 +782,7 @@ void Mat::RGBToHSV(Mat &dest) const {
 			*(pd++) = (uint8_t)Clamp((int)(cmax * 255.0f), 0, 255);
 		}
 	}, rows, 32);
+#endif
 }
 
 void Mat::HSVToRGB(Mat &dest) const {
@@ -726,7 +790,16 @@ void Mat::HSVToRGB(Mat &dest) const {
 		Critical("Mat::HSVToRGB: only 3 channels hsv image data can be converted to rgb.");
 	dest.Reshape(rows, cols, 3);
 
-	const uint8_t *source = data;
+#ifdef WITH_OPENCV
+    uint8_t *pdest = data;
+    for(int i = 0; i < size; i += 3) {
+        pdest[i] *= Clamp(pdest[i] * (180.0f / 255.0f), 0, 255);
+    }
+    cv::Mat cvOrgM(rows, cols, CV_8UC3, data);
+    cv::Mat cvDstM(rows, cols, CV_8UC3, dest.data);
+    cv::cvtColor(cvOrgM, cvDstM, cv::COLOR_HSV2BGR);
+#else
+    const uint8_t *source = data;
 	uint8_t *destination = dest.data;
 	ParallelFor([&](int64_t i) {
 		const uint8_t *ps = source + i * cols * 3;
@@ -771,6 +844,7 @@ void Mat::HSVToRGB(Mat &dest) const {
 			*(pd++) = (uint8_t)Clamp((int)(b * 255.0f), 0, 255);
 		}
 	}, rows, 32);
+#endif
 }
 
 void Mat::RGBToGray(Mat &dest) const {
@@ -778,6 +852,11 @@ void Mat::RGBToGray(Mat &dest) const {
 		Critical("Mat::RGBToGray: only 3 channels rgb image data can be converted to gray.");
 	dest.Reshape(rows, cols, 1);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_8UC3, data);
+	cv::Mat cvDstM(rows, cols, CV_8UC1, dest.data);
+	cv::cvtColor(cvOrgM, cvDstM, cv::COLOR_BGR2GRAY);
+#else
 	const uint8_t *source = data;
 	uint8_t *destination = dest.data;
 	ParallelFor([&](int64_t i) {
@@ -792,6 +871,7 @@ void Mat::RGBToGray(Mat &dest) const {
 			*(pd++) = v;
 		}
 	}, rows, 32);
+#endif
 }
 
 void Mat::GrayToRGB(Mat &dest) const {
@@ -842,6 +922,12 @@ bool Mat::MakeBorder(Mat& outM, int left, int top, int right, int bottom, bool r
 	int trows = rows + top + bottom;
 	int tcols = cols + left + right;
 	outM.Reshape(trows, tcols, channels);
+
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_8UC(channels), data);
+	cv::Mat cvDstM(trows, tcols, CV_8UC(channels), outM.data);
+	cv::copyMakeBorder(cvOrgM, cvDstM, top, bottom, left, right, replicate ? cv::BORDER_REPLICATE : cv::BORDER_CONSTANT);
+#else
 	int strideSrc = cols * channels;
 	int strideDest = tcols * channels;
 
@@ -876,6 +962,7 @@ bool Mat::MakeBorder(Mat& outM, int left, int top, int right, int bottom, bool r
 			memcpy(pd, ps, strideSrc);
 		}
 	}
+#endif
 	return true;
 }
 
@@ -1259,37 +1346,113 @@ void MatF::Merge(const std::vector<MatF> &mats) {
 	}
 }
 
-void MatF::Resize(MatF &dest, float sr, float sc, bool nearest) const {
+void MatF::Resize(MatF &dest, float sr, float sc, ResizeMode mode) const {
 	int trows = (int)(rows * sr);
 	int tcols = (int)(cols * sc);
 	dest.Reshape(trows, tcols, false);
-	if(nearest) ResizeNearest(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC1, data);
+	cv::Mat cvDstM(trows, tcols, CV_32FC1, dest.data);
+	int interp = cv::INTER_LINEAR;
+	switch (mode) {
+		case ResizeMode::Bicubic:
+			interp = cv::INTER_CUBIC;
+			break;
+		case ResizeMode::Nearest:
+			interp = cv::INTER_NEAREST;
+			break;
+		default:
+			interp = cv::INTER_LINEAR;
+			break;
+	}
+	cv::resize(cvOrgM, cvDstM, cv::Size(tcols, trows), 0, 0, interp);
+#else
+	if(mode == ResizeMode::Nearest) ResizeNearest(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
 	else ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+#endif
 }
 
-void MatF::Resize(MatF &dest, int tr, int tc, bool nearest) const {
+void MatF::Resize(MatF &dest, int tr, int tc, ResizeMode mode) const {
 	dest.Reshape(tr, tc, false);
-	if(nearest) ResizeNearest(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC1, data);
+	cv::Mat cvDstM(tr, tc, CV_32FC1, dest.data);
+	int interp = cv::INTER_LINEAR;
+	switch (mode) {
+		case ResizeMode::Bicubic:
+			interp = cv::INTER_CUBIC;
+			break;
+		case ResizeMode::Nearest:
+			interp = cv::INTER_NEAREST;
+			break;
+		default:
+			interp = cv::INTER_LINEAR;
+			break;
+	}
+	cv::resize(cvOrgM, cvDstM, cv::Size(tc, tr), 0, 0, interp);
+#else
+	if(mode == ResizeMode::Nearest) ResizeNearest(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
 	else ResizeBilinear(data, cols, rows, cols, dest.data, dest.cols, dest.rows, dest.cols, 1);
+#endif
 }
 
-void MatF::Resize(MatF &dest, float sr, float sc, int channels, bool nearest) const {
+void MatF::Resize(MatF &dest, float sr, float sc, int channels, ResizeMode mode) const {
 	if (cols % channels != 0)
 		Critical("MatF::Resize: cannot resize for target channel number.");
 	int ocols = cols / channels;
 	int trows = (int)(rows * sr);
 	int tcols = (int)(ocols * sc);
 	dest.Reshape(trows, tcols * channels, false);
-	if(nearest) ResizeNearest(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
+
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, ocols, CV_32FC(channels), data);
+	cv::Mat cvDstM(trows, tcols, CV_32FC(channels), dest.data);
+	int interp = cv::INTER_LINEAR;
+	switch (mode) {
+		case ResizeMode::Bicubic:
+			interp = cv::INTER_CUBIC;
+			break;
+		case ResizeMode::Nearest:
+			interp = cv::INTER_NEAREST;
+			break;
+		default:
+			interp = cv::INTER_LINEAR;
+			break;
+	}
+	cv::resize(cvOrgM, cvDstM, cv::Size(tcols, trows), 0, 0, interp);
+#else
+	if(mode == ResizeMode::Nearest) ResizeNearest(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
 	else ResizeBilinear(data, ocols, rows, cols, dest.data, tcols, dest.rows, dest.cols, channels);
+#endif
 }
 
-void MatF::Resize(MatF &dest, int tr, int tc, int channels, bool nearest) const {
+void MatF::Resize(MatF &dest, int tr, int tc, int channels, ResizeMode mode) const {
 	if (cols % channels != 0)
 		Critical("MatF::Resize: cannot resize for target channel number.");
 	dest.Reshape(tr, tc * channels, false);
-	if(nearest) ResizeNearest(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
+
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols / channels, CV_32FC(channels), data);
+	cv::Mat cvDstM(tr, tc, CV_32FC(channels), dest.data);
+	int interp = cv::INTER_LINEAR;
+	switch (mode) {
+		case ResizeMode::Bicubic:
+			interp = cv::INTER_CUBIC;
+			break;
+		case ResizeMode::Nearest:
+			interp = cv::INTER_NEAREST;
+			break;
+		default:
+			interp = cv::INTER_LINEAR;
+			break;
+	}
+	cv::resize(cvOrgM, cvDstM, cv::Size(tc, tr), 0, 0, interp);
+#else
+	if(mode == ResizeMode::Nearest) ResizeNearest(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
 	else ResizeBilinear(data, cols / channels, rows, cols, dest.data, tc, dest.rows, dest.cols, channels);
+#endif
 }
 
 void MatF::ToMat(Mat& dest, int channels, float scale, float offset) const {
@@ -1333,6 +1496,11 @@ bool MatF::MakeBorder(MatF &outM, int left, int top, int right, int bottom, bool
 	int tcols = cols + left + right;
 	outM.Reshape(trows, tcols);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC1, data);
+	cv::Mat cvDstM(trows, tcols, CV_32FC1, outM.data);
+	cv::copyMakeBorder(cvOrgM, cvDstM, top, bottom, left, right, replicate ? cv::BORDER_REPLICATE : cv::BORDER_CONSTANT);
+#else
 	if (replicate) {
 		for (int y = 0; y < trows; ++y) {
 			float *pd = outM.data + y * tcols + left;
@@ -1360,6 +1528,7 @@ bool MatF::MakeBorder(MatF &outM, int left, int top, int right, int bottom, bool
 			memcpy(pd, ps, cols * sizeof(float));
 		}
 	}
+#endif
 	return true;
 }
 
@@ -1790,6 +1959,11 @@ bool MatCF::MakeBorder(MatCF &outM, int left, int top, int right, int bottom, bo
 	int tcols = cols + left + right;
 	outM.Reshape(trows, tcols);
 
+#ifdef WITH_OPENCV
+	cv::Mat cvOrgM(rows, cols, CV_32FC2, data);
+	cv::Mat cvDstM(trows, tcols, CV_32FC2, outM.data);
+	cv::copyMakeBorder(cvOrgM, cvDstM, top, bottom, left, right, replicate ? cv::BORDER_REPLICATE : cv::BORDER_CONSTANT);
+#else
 	if (replicate) {
 		for (int y = 0; y < trows; ++y) {
 			ComplexF *pd = outM.data + y * tcols + left;
@@ -1817,6 +1991,7 @@ bool MatCF::MakeBorder(MatCF &outM, int left, int top, int right, int bottom, bo
 			memcpy(pd, ps, cols * sizeof(ComplexF));
 		}
 	}
+#endif
 	return true;
 }
 

@@ -97,6 +97,9 @@ else ()
     message(FATAL_ERROR, "Unsupported platform.")
 endif ()
 
+find_package(OpenCV REQUIRED) # OpenCV is required for test cases.
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 # Set the source files
 set(CSRT_CAMERA_SOURCE
         Source/Camera/KinectService1.cpp
@@ -176,12 +179,9 @@ add_library(csrt SHARED
         ${CSRT_HEADERS})
 add_sanitizers(csrt)
 target_compile_definitions(csrt PUBLIC CSRT_EXPORT)
-target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(csrt ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT} ${OpenCV_LIBS})
 
 # Test executable
-find_package(OpenCV REQUIRED) # OpenCV is required for test cases.
-include_directories(${OpenCV_INCLUDE_DIRS})
-
 if(APPLE)
     # Compile for macOS
     add_executable(test_camera Run/testCamera.cpp)
@@ -215,6 +215,10 @@ if(APPLE)
     add_executable(test_image_resizer Run/testImageResizer.cpp)
     add_sanitizers(test_image_resizer)
     target_link_libraries(test_image_resizer csrt ${OpenCV_LIBS})
+
+    add_executable(test_simple Run/testSimple.cpp)
+    add_sanitizers(test_simple)
+    target_link_libraries(test_simple csrt ${OpenCV_LIBS})
 elseif(WIN32 AND MSVC)
     # Windows platform and MSVC compiler
     add_executable(test_camera Run/testCamera.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
@@ -248,6 +252,10 @@ elseif(WIN32 AND MSVC)
     add_executable(test_image_resizer Run/testImageResizer.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
     add_sanitizers(test_image_resizer)
     target_link_libraries(test_image_resizer ${OpenCV_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable(test_simple Run/testSimple.cpp ${CSRT_CAMERA_SOURCE} ${CSRT_CAMERA_HEADERS} ${CSRT_SOURCE} ${CSRT_HEADERS})
+    add_sanitizers(test_simple)
+    target_link_libraries(test_simple csrt ${OpenCV_LIBS} ${FFTW3_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 else()
     message(FATAL_ERROR, "Unsupported platform.")
 endif()
@@ -315,3 +323,7 @@ target_link_libraries(cvcsrt ${OpenCV_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 add_executable(vot_interface_cvcsrt Run/votInterface_cvcsrt.cpp Run/vot.h)
 add_sanitizers(vot_interface_cvcsrt)
 target_link_libraries(vot_interface_cvcsrt cvcsrt ${OpenCV_LIBS} ${CMAKE_THREAD_LIBS_INIT}  ${TRAX_LIBS})
+
+add_executable(test_eval_direct_cv Run/testEvalDirectCV.cpp)
+add_sanitizers(test_eval_direct_cv)
+target_link_libraries(test_eval_direct_cv cvcsrt ${OpenCV_LIBS})

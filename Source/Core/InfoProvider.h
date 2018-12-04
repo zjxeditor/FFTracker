@@ -122,7 +122,7 @@ private:
 	std::vector<int> defaultMaskAreas;			// Default mask area.
 	std::vector<MatF> defaultMasks;				// Default mask for pipeline without segmentation.
 	std::vector<MatF> filterMasks;				// Segmented filter mask.
-	MatF erodeKernel;							// 3x3 erode kernel.
+	Mat erodeKernel;							// 3x3 erode kernel.
 	float backgroundRatio;						// Background extension ratio for histogram calculation.
 	float histLearnRate;						// Histogram learning rate.
 	int postRegularCount;						// Iteration count for post regularization.

@@ -55,10 +55,10 @@ public:
 	void Correlation2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderType borderType = BorderType::Replicate);
 
 	// Perform 2d matrix dilate operation.
-	void Dilate2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderType borderType = BorderType::Replicate);
+	void Dilate2D(const MatF &inM, const Mat &kernelM, MatF &outM, BorderType borderType = BorderType::Replicate);
 
 	// Perform 2d matrix erode operation.
-	void Erode2D(const MatF &inM, const MatF &kernelM, MatF &outM, BorderType borderType = BorderType::Replicate);
+	void Erode2D(const MatF &inM, const Mat &kernelM, MatF &outM, BorderType borderType = BorderType::Replicate);
 
 private:
 	inline static float ChebPoly(int n, float x) {
