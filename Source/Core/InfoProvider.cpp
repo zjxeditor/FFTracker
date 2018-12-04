@@ -147,7 +147,7 @@ void InfoProvider::GetScaleFeatures(
 	int fcount = (int)hogs.size();
 	MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
 	ParallelFor([&](int64_t c) {
-		hogs[c].ReValue(window.Data()[0], 0.0f);
+	    hogs[c].ReValue(window.Data()[0], 0.0f);
 		memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
 	}, fcount, 4);
 
@@ -165,7 +165,7 @@ void InfoProvider::GetScaleFeatures(
 
 		float *pd = featT.Data() + y * featT.Cols();
 		for (int i = 0; i < fcount; ++i) {
-			scaleHogs[i].ReValue(window.Data()[y], 0.0f);
+            scaleHogs[i].ReValue(window.Data()[y], 0.0f);
 			memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
 		}
 	}, factors.size() - 1, 2);
@@ -209,7 +209,7 @@ void InfoProvider::GetScaleFeatures(
 		int fcount = (int)hogs.size();
 		MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
 		ParallelFor([&](int64_t c) {
-			hogs[c].ReValue(window.Data()[0], 0.0f);
+            hogs[c].ReValue(window.Data()[0], 0.0f);
 			memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
 		}, fcount, 4);
 
@@ -227,7 +227,7 @@ void InfoProvider::GetScaleFeatures(
 
 			float *pd = featT.Data() + y * featT.Cols();
 			for (int i = 0; i < fcount; ++i) {
-				scaleHogs[i].ReValue(window.Data()[y], 0.0f);
+                scaleHogs[i].ReValue(window.Data()[y], 0.0f);
 				memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
 			}
 		}, factors.size() - 1, 2);
@@ -250,7 +250,7 @@ void InfoProvider::GetScaleFeatures(
 		int fcount = (int)hogs.size();
 		MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
 		ParallelFor([&](int64_t c) {
-			hogs[c].ReValue(window.Data()[0], 0.0f);
+            hogs[c].ReValue(window.Data()[0], 0.0f);
 			memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
 		}, fcount, 4);
 
@@ -268,7 +268,7 @@ void InfoProvider::GetScaleFeatures(
 
 			float *pd = featT.Data() + y * featT.Cols();
 			for (int i = 0; i < fcount; ++i) {
-				scaleHogs[i].ReValue(window.Data()[y], 0.0f);
+                scaleHogs[i].ReValue(window.Data()[y], 0.0f);
 				memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
 			}
 		}, factors.size() - 1, 2);
@@ -565,6 +565,62 @@ void InfoProvider::ConfigureDSST(
 
 	// Create dssts.
 	dssts.resize(targetCount, DSST(learnRateOfScale));
+}
+
+void InfoProvider::ConfigureFDSST(int numberOfInterpScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea) {
+    if(numberOfInterpScales <= 0 || stepOfScale <= 0.0f) {
+        Critical("InfoProvider::ConfigureDSST: invalid dsst configuration.");
+        return;
+    }
+
+    scaleInterpCount = numberOfInterpScales;
+    if (scaleInterpCount % 2 == 0)	// Scale count must be odd number.
+        ++scaleInterpCount;
+    scaleCount = scaleInterpCount / 2 + 1;
+
+    // Calculate standard response, scale factors and scale window.
+    float scaleSigma = scaleInterpCount * sigmaFactor;
+    MatF gs(1, scaleCount, GInfoArenas);
+    scaleFactors.resize(scaleCount);
+    scaleInterpFactors.resize(scaleInterpCount);
+    int half = scaleCount / 2;
+    float ratio = (float)scaleInterpCount / scaleCount;
+    for (int i = 0; i < scaleCount; ++i) {
+        float ss = (i - half) * ratio;
+        int index = Mod(i - half, scaleCount);
+        scaleFactors[i] = pow(stepOfScale, ss);
+        gs.Data()[index] = exp(-0.5f * pow(ss, 2) / pow(scaleSigma, 2));
+    }
+
+    GFFT.FFT2Row(gs, scaleGSF);
+    GFilter.HannWin(scaleWindow, Vector2i(scaleCount, 1));
+    half = scaleInterpCount / 2;
+    for(int i = 0; i < scaleInterpCount; ++i) {
+        float ss = (float)(i - half);
+        int index = Mod(i - half, scaleInterpCount);
+        scaleInterpFactors[index] = pow(stepOfScale, ss);
+    }
+
+    // Calculate scale model size for this DSST.
+    float scaleModelFactor = 1.0f;
+    if (templateSize.x * templateSize.y > maxArea)
+        scaleModelFactor = sqrt(maxArea / (templateSize.x * templateSize.y));
+    scaleModelSize.x = (int)(templateSize.x * scaleModelFactor);
+    scaleModelSize.y = (int)(templateSize.y * scaleModelFactor);
+
+    // Calculate minimum and maximum scale factors.
+    scaleMinFactors.resize(targetCount);
+    scaleMaxFactors.resize(targetCount);
+    float minFactor = pow(stepOfScale, std::ceil(
+            log(std::max(5.0f / templateSize.x, 5.0f / templateSize.y)) / log(stepOfScale)));
+    for (int i = 0; i < targetCount; ++i) {
+        scaleMinFactors[i] = minFactor;
+        scaleMaxFactors[i] = pow(stepOfScale, std::floor(
+                log(std::min((float)moveSize.y / orgTargetSizes[i].y, (float)moveSize.x / orgTargetSizes[i].x)) / log(stepOfScale)));
+    }
+
+    // Create fdssts.
+    fdssts.resize(targetCount, FDSST(learnRateOfScale));
 }
 
 void InfoProvider::ConfigureSegment(

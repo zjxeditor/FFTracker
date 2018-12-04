@@ -484,8 +484,8 @@ bool TrackerCSRTImpl::updateImpl(const Mat& image_, Rect2d& boundingBox)
         update_histograms(hsv_img, bounding_box);
         filter_mask = segment_region(hsv_img, object_center,
                 template_size,original_target_size, current_scale_factor);
-        //resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
-        resize(filter_mask, filter_mask, yf.size(), 0, 0);
+        resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
+        //resize(filter_mask, filter_mask, yf.size(), 0, 0);
         if(check_mask_area(filter_mask, default_mask_area)) {
             dilate(filter_mask , filter_mask, erode_element);
         } else {
@@ -573,8 +573,8 @@ bool TrackerCSRTImpl::initImpl(const Mat& image_, const Rect2d& boundingBox)
             filter_mask = filter_mask.mul(preset_mask_padded);
         }
         erode_element = getStructuringElement(MORPH_ELLIPSE, Size(3,3), Point(1,1));
-        //resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
-        resize(filter_mask, filter_mask, yf.size(), 0, 0);
+        resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
+        //resize(filter_mask, filter_mask, yf.size(), 0, 0);
         if(check_mask_area(filter_mask, default_mask_area)) {
             dilate(filter_mask , filter_mask, erode_element);
         } else {

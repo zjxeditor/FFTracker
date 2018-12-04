@@ -286,9 +286,9 @@ int main() {
 			std::cout << std::endl
 				<< "accuracy: " << tracker.Accuracy() << std::endl
 				//<< "robustness: " << tracker.Robustness() << std::endl
-				//<< "fps: " << tracker.Fps() << std::endl
 				//<< "tracked frames: " << tracker.TrackedFrames() << std::endl
-				<< "failed frames: " << tracker.FailedFrames() << std::endl;
+				<< "failed frames: " << tracker.FailedFrames() << std::endl
+				<< "fps: " << tracker.Fps() << std::endl;
 		}
 	}
 

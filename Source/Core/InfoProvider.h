@@ -16,6 +16,7 @@
 #include "../Utility/Smoother.h"
 #include "Segment.h"
 #include "DSST.h"
+#include "FDSST.h"
 #include "Tracker.h"
 
 namespace CSRT {
@@ -60,6 +61,7 @@ public:
 		bool channelWeights, int pca, int iteration, float learnRateOfChannel, float learnRateOfFilter,
 		WindowType windowFunc = WindowType::Hann, float chebAttenuation = 45.0f, float kaiserAlpha = 3.75f);
 	void ConfigureDSST(int numberOfScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea);
+    void ConfigureFDSST(int numberOfInterpScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea);
 	void ConfigureSegment(int histDim, int histBin, float bgRatio, float learnRateOfHist, int regularCount, float maxSegArea);
 	void ConfigureSmoother(float stepOfScale);
 
@@ -109,7 +111,10 @@ private:
 	std::vector<float> scaleMinFactors;			// Minimum scale factors.
 	std::vector<float> scaleMaxFactors;			// Maximum scale factors.
 	std::vector<float> scaleFactors;			// Calculated scale factors of each level.
-	
+	// Additional members for fast DSST
+	int scaleInterpCount;                       // Total interpolation scale count.
+    std::vector<float> scaleInterpFactors;		// Calculated interpolation scale factors of each level.
+
 	// Members used for segmentation.
 	std::vector<Histogram> histFores;			// Foreground histogram model.
 	std::vector<Histogram> histBacks;			// Background histogram model 
@@ -130,6 +135,7 @@ private:
 	// Track components.
 	std::vector<Tracker> trackers;
 	std::vector<DSST> dssts;
+    std::vector<FDSST> fdssts;
 };
 
 // Global Feature Provider

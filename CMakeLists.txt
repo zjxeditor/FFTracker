@@ -117,6 +117,7 @@ set(CSRT_SOURCE
         Source/Utility/Parallel.cpp
         Source/Utility/Smoother.cpp
         Source/Core/DSST.cpp
+        Source/Core/FDSST.cpp
         Source/Core/FeaturesExtractor.cpp
         Source/Core/Filter.cpp
         Source/Core/InfoProvider.cpp
@@ -136,6 +137,7 @@ set(CSRT_HEADERS
         Source/Utility/Geometry.h
         Source/Utility/StringPrint.h
         Source/Core/DSST.h
+        Source/Core/FDSST.h
         Source/Core/FeaturesExtractor.h
         Source/Core/Filter.h
         Source/Core/InfoProvider.h

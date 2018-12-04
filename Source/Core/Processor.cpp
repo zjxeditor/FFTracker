@@ -313,8 +313,10 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 	if (!arenas)
 		arenas = new MemoryArena[MaxThreadIndex()];
 	for (auto &item : GInfoProvider.trackers) item.SetReinitialize();
-	if (params.UseScale)
-		for (auto &item : GInfoProvider.dssts) item.SetReinitialize();
+	if (params.UseScale) {
+        for (auto &item : GInfoProvider.dssts) item.SetReinitialize();
+        for (auto &item : GInfoProvider.fdssts) item.SetReinitialize();
+	}
 
 	// Input check.
 	if (trackMode == TrackMode::Depth) {
@@ -337,6 +339,7 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 		params.FilterLearnRate, params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
 	if (params.UseScale)
 		GInfoProvider.ConfigureDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+        //GInfoProvider.ConfigureFDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
 	// Note: segmentation process extract histogram from 3 channel image.
 	GInfoProvider.ConfigureSegment(3, params.HistogramBins, params.BackgroundRatio, params.HistLearnRate, params.PostRegularCount, params.MaxSegmentArea);
 	if (params.UseSmoother)
@@ -380,6 +383,18 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 			GInfoProvider.dssts[i].Initialize(scaleFeature, GInfoProvider.scaleGSF);
 		}
 	}
+
+	// Initialize fdssts.
+//	if (params.UseScale) {
+//		// Extract features for dsst.
+//		MatF scaleFeature(&arenas[ThreadIndex]);
+//		for (int i = 0; i < targetCount; ++i) {
+//			GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+//										   GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+//										   GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+//			GInfoProvider.fdssts[i].Initialize(scaleFeature, GInfoProvider.scaleGSF);
+//		}
+//	}
 
 	ResetArenas(false);
 	ResetArenas(true);
@@ -539,6 +554,16 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 				GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
 			GInfoProvider.currentScales[i] = newScale;
 		}
+//        MatF scaleFeature(&arenas[ThreadIndex]);
+//        float newScale = 1.0f;
+//        for (int i = 0; i < targetCount; ++i) {
+//            GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+//                                           GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+//                                           GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+//            GInfoProvider.fdssts[i].GetScale(scaleFeature, GInfoProvider.scaleInterpFactors, GInfoProvider.currentScales[i],
+//                                            GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
+//            GInfoProvider.currentScales[i] = newScale;
+//        }
 		if (params.UseSmoother) {
 			for (int i = 0; i < targetCount; ++i) {
 				GInfoProvider.currentScales[i] = Clamp(GInfoProvider.smoother1Ds[i].Update(GInfoProvider.currentScales[i]),
@@ -594,6 +619,13 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 					GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
 				GInfoProvider.dssts[i].Update(scaleFeature);
 			}
+//            MatF scaleFeature(&arenas[ThreadIndex]);
+//            for (int i = 0; i < targetCount; ++i) {
+//                GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+//                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+//                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+//                GInfoProvider.fdssts[i].Update(scaleFeature);
+//            }
 		}
 	} else {	// Do update work in the background thread.
 		++updateCounter;
