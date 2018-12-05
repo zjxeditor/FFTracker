@@ -229,7 +229,7 @@ TrackerParams::TrackerParams() {
 
 	AdmmIterations = 4;
 	Padding = 3.0f;
-	TemplateSize = 200;
+	TemplateSize = 200.0f;
 	GaussianSigma = 1.0f;
 
 	WindowFunc = WindowType::Hann;
@@ -253,7 +253,8 @@ TrackerParams::TrackerParams() {
 
 	UpdateInterval = 4;
 	UseScale = true;
-	UseSmoother = true;
+	UseSmoother = false;
+	UseFastScale = false;
 }
 
 Processor::Processor(const TrackerParams& trackParams, int count, const Vector2i &moveSize, TrackMode mode) :
@@ -307,7 +308,7 @@ void Processor::SetReinitialize() {
 	initialized = false;
 }
 
-void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs) {
+void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2f>& bbs) {
 	if (initialized) return;
 	initialized = true;
 	if (!arenas)
@@ -337,9 +338,12 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 	GInfoProvider.ConfigureTracker(params.Padding, params.TemplateSize, params.GaussianSigma,
 		params.UseChannelWeights, params.PCACount, params.AdmmIterations, params.WeightsLearnRate,
 		params.FilterLearnRate, params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
-	if (params.UseScale)
-		GInfoProvider.ConfigureDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
-        //GInfoProvider.ConfigureFDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+	if (params.UseScale) {
+	    if(params.UseFastScale)
+            GInfoProvider.ConfigureFDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+	    else
+            GInfoProvider.ConfigureDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+	}
 	// Note: segmentation process extract histogram from 3 channel image.
 	GInfoProvider.ConfigureSegment(3, params.HistogramBins, params.BackgroundRatio, params.HistLearnRate, params.PostRegularCount, params.MaxSegmentArea);
 	if (params.UseSmoother)
@@ -359,9 +363,9 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 	Mat orgPatch(&arenas[ThreadIndex]), patch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
 		// Extract features for tracker.
-		GFilter.GetSubWindow(rgbImage, orgPatch, GInfoProvider.currentPositions[i],
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
+		GFilter.GetSubWindow(rgbImage, orgPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
 		orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 		GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -376,31 +380,28 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2i>& bbs
 	if (params.UseScale) {
 		// Extract features for dsst.
 		MatF scaleFeature(&arenas[ThreadIndex]);
-		for (int i = 0; i < targetCount; ++i) {
-			GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
-				GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-				GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-			GInfoProvider.dssts[i].Initialize(scaleFeature, GInfoProvider.scaleGSF);
+		if(params.UseFastScale) {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                GInfoProvider.fdssts[i].Initialize(scaleFeature, GInfoProvider.scaleGSF);
+            }
+		} else {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                GInfoProvider.dssts[i].Initialize(scaleFeature, GInfoProvider.scaleGSF);
+            }
 		}
 	}
-
-	// Initialize fdssts.
-//	if (params.UseScale) {
-//		// Extract features for dsst.
-//		MatF scaleFeature(&arenas[ThreadIndex]);
-//		for (int i = 0; i < targetCount; ++i) {
-//			GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
-//										   GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-//										   GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-//			GInfoProvider.fdssts[i].Initialize(scaleFeature, GInfoProvider.scaleGSF);
-//		}
-//	}
 
 	ResetArenas(false);
 	ResetArenas(true);
 }
 
-void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, const std::vector<Bounds2i>& bbs) {
+void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, const std::vector<Bounds2f>& bbs) {
 	if (initialized) return;
 	initialized = true;
 	if (!arenas)
@@ -433,8 +434,12 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 	GInfoProvider.ConfigureTracker(params.Padding, params.TemplateSize, params.GaussianSigma,
 		params.UseChannelWeights, params.PCACount, params.AdmmIterations, params.WeightsLearnRate,
 		params.FilterLearnRate, params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
-	if (params.UseScale)
-		GInfoProvider.ConfigureDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+	if (params.UseScale) {
+	    if(params.UseFastScale)
+            GInfoProvider.ConfigureFDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+	    else
+            GInfoProvider.ConfigureDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
+	}
 	// Note: segmentation process extract histogram from 1 channel image for depth and 2 channel image for normal.
 	GInfoProvider.ConfigureSegment(params.UseNormalForSegment ? 2 : 1, params.HistogramBins, params.BackgroundRatio, params.HistLearnRate, params.PostRegularCount, params.MaxSegmentArea);
 	if (params.UseSmoother)
@@ -457,15 +462,15 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 	MatF orgDepthPatch(&arenas[ThreadIndex]), depthPatch(&arenas[ThreadIndex]);
 	MatF orgNormalPatch(&arenas[ThreadIndex]), normalPatch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
-		GFilter.GetSubWindow(depthImage, orgDepthPatch, GInfoProvider.currentPositions[i],
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
-		orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
+		GFilter.GetSubWindow(depthImage, orgDepthPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
+		orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 		if(normalImage.Size() != 0) {
-			GFilter.GetSubWindow(normalImage, orgNormalPatch, Vector2i(GInfoProvider.currentPositions[i].x * 2, GInfoProvider.currentPositions[i].y),
-				((int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x) / 2) * 4,
-				((int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y)));
-			orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2);
+			GFilter.GetSubWindow(normalImage, orgNormalPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x * 2.0f), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+				((int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x) / 2) * 4,
+				((int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y)));
+			orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2, ResizeMode::Bicubic);
 		}
 		GInfoProvider.GetTrackFeatures(depthPatch, normalPatch, featureSize, features[i], GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -483,11 +488,20 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 	if (params.UseScale) {
 		// Extract features for dsst.
 		std::vector<MatF> scaleFeatures(targetCount, MatF(&arenas[ThreadIndex]));
-		for (int i = 0; i < targetCount; ++i) {
-			GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeatures[i], GInfoProvider.currentPositions[i],
-				GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-				GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
-			GInfoProvider.dssts[i].Initialize(scaleFeatures[i], GInfoProvider.scaleGSF);
+		if(params.UseFastScale) {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeatures[i], GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                GInfoProvider.fdssts[i].Initialize(scaleFeatures[i], GInfoProvider.scaleGSF);
+            }
+		} else {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeatures[i], GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                GInfoProvider.dssts[i].Initialize(scaleFeatures[i], GInfoProvider.scaleGSF);
+            }
 		}
 	}
 
@@ -495,7 +509,7 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 	ResetArenas(true);
 }
 
-void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
+void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 	if (!initialized) {
 		Error("Processor::Update: the tracking system is not initialized.");
 		return;
@@ -513,15 +527,15 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 	bbs.resize(targetCount);
 
 	// Get new positions.
-	Vector2i newPosition;
+	Vector2f newPosition;
 	std::vector<MatF> features;
 	const Vector2i featureSize(GInfoProvider.yf.Cols(), GInfoProvider.yf.Rows());
 	Mat orgPatch(&arenas[ThreadIndex]), patch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
 		// Extract features for tracker.
-		GFilter.GetSubWindow(rgbImage, orgPatch, GInfoProvider.currentPositions[i],
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
+		GFilter.GetSubWindow(rgbImage, orgPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
 		orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 		GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -534,10 +548,9 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 	if (params.UseSmoother) {
 		Vector2f filteredPosition;
 		for (int i = 0; i < targetCount; ++i) {
-			filteredPosition = GInfoProvider.smoother2Ds[i].Update(
-				Vector2f(GInfoProvider.currentPositions[i].x, GInfoProvider.currentPositions[i].y));
-			GInfoProvider.currentPositions[i].x = Clamp((int)filteredPosition.x, 1, rgbImage.Cols() - 2);
-			GInfoProvider.currentPositions[i].y = Clamp((int)filteredPosition.y, 1, rgbImage.Rows() - 2);
+			filteredPosition = GInfoProvider.smoother2Ds[i].Update(GInfoProvider.currentPositions[i]);
+			GInfoProvider.currentPositions[i].x = Clamp(filteredPosition.x, 0.0f, rgbImage.Cols() - 1.0f);
+			GInfoProvider.currentPositions[i].y = Clamp(filteredPosition.y, 0.0f, rgbImage.Rows() - 1.0f);
 		}
 	}
 
@@ -546,24 +559,26 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 		// Extract features for dsst.
 		MatF scaleFeature(&arenas[ThreadIndex]);
 		float newScale = 1.0f;
-		for (int i = 0; i < targetCount; ++i) {
-			GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
-				GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-				GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-			GInfoProvider.dssts[i].GetScale(scaleFeature, GInfoProvider.scaleFactors, GInfoProvider.currentScales[i],
-				GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
-			GInfoProvider.currentScales[i] = newScale;
+		if(params.UseFastScale) {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                GInfoProvider.fdssts[i].GetScale(scaleFeature, GInfoProvider.scaleInterpFactors, GInfoProvider.currentScales[i],
+                                                GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
+                GInfoProvider.currentScales[i] = newScale;
+            }
+		} else {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                GInfoProvider.dssts[i].GetScale(scaleFeature, GInfoProvider.scaleFactors, GInfoProvider.currentScales[i],
+                                                GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
+                GInfoProvider.currentScales[i] = newScale;
+            }
 		}
-//        MatF scaleFeature(&arenas[ThreadIndex]);
-//        float newScale = 1.0f;
-//        for (int i = 0; i < targetCount; ++i) {
-//            GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
-//                                           GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-//                                           GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-//            GInfoProvider.fdssts[i].GetScale(scaleFeature, GInfoProvider.scaleInterpFactors, GInfoProvider.currentScales[i],
-//                                            GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
-//            GInfoProvider.currentScales[i] = newScale;
-//        }
+
 		if (params.UseSmoother) {
 			for (int i = 0; i < targetCount; ++i) {
 				GInfoProvider.currentScales[i] = Clamp(GInfoProvider.smoother1Ds[i].Update(GInfoProvider.currentScales[i]),
@@ -573,15 +588,15 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 	}
 
 	// Update bounding boxes.
-	Vector2i newSize;
+	Vector2f newSize;
 	auto &bounds = GInfoProvider.currentBounds;
 	auto &positions = GInfoProvider.currentPositions;
 	for (int i = 0; i < targetCount; ++i) {
 		newSize = GInfoProvider.currentScales[i] * GInfoProvider.orgTargetSizes[i];
-		bounds[i].pMin.x = std::max(positions[i].x - newSize.x / 2, 0);
-		bounds[i].pMin.y = std::max(positions[i].y - newSize.y / 2, 0);
-		bounds[i].pMax.x = std::min(bounds[i].pMin.x + newSize.x, rgbImage.Cols());
-		bounds[i].pMax.y = std::min(bounds[i].pMin.y + newSize.y, rgbImage.Rows());
+		bounds[i].pMin.x = std::max(positions[i].x - newSize.x / 2.0f, 0.0f);
+		bounds[i].pMin.y = std::max(positions[i].y - newSize.y / 2.0f, 0.0f);
+		bounds[i].pMax.x = std::min(bounds[i].pMin.x + newSize.x, (float)rgbImage.Cols());
+		bounds[i].pMax.y = std::min(bounds[i].pMin.y + newSize.y, (float)rgbImage.Rows());
 	}
 	bbs = bounds;
 
@@ -597,9 +612,9 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 		// Update trackers.
 		for (int i = 0; i < targetCount; ++i) {
 			// Extract features for tracker.
-			GFilter.GetSubWindow(rgbImage, orgPatch, GInfoProvider.currentPositions[i],
-				(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
-				(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
+			GFilter.GetSubWindow(rgbImage, orgPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+				(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
+				(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
 			orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 			GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 				GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -613,19 +628,21 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 		if (params.UseScale) {
 			// Extract features for dsst.
 			MatF scaleFeature(&arenas[ThreadIndex]);
-			for (int i = 0; i < targetCount; ++i) {
-				GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
-					GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-					GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-				GInfoProvider.dssts[i].Update(scaleFeature);
+			if(params.UseFastScale) {
+			    for (int i = 0; i < targetCount; ++i) {
+                    GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                                   GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                                   GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                    GInfoProvider.fdssts[i].Update(scaleFeature);
+			    }
+			} else {
+                for (int i = 0; i < targetCount; ++i) {
+                    GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                                   GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                                   GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                    GInfoProvider.dssts[i].Update(scaleFeature);
+                }
 			}
-//            MatF scaleFeature(&arenas[ThreadIndex]);
-//            for (int i = 0; i < targetCount; ++i) {
-//                GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
-//                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-//                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-//                GInfoProvider.fdssts[i].Update(scaleFeature);
-//            }
 		}
 	} else {	// Do update work in the background thread.
 		++updateCounter;
@@ -643,7 +660,7 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2i>& bbs) {
 	ResetArenas(false);
 }
 
-void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vector<Bounds2i>& bbs) {
+void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vector<Bounds2f>& bbs) {
 	if (!initialized) {
 		Error("Processor::Update: the tracking system is not initialized.");
 		return;
@@ -669,22 +686,22 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 	bbs.resize(targetCount);
 
 	// Get new positions.
-	Vector2i newPosition;
+	Vector2f newPosition;
 	std::vector<MatF> features;
 	const Vector2i featureSize(GInfoProvider.yf.Cols(), GInfoProvider.yf.Rows());
 	MatF orgDepthPatch(&arenas[ThreadIndex]), depthPatch(&arenas[ThreadIndex]);
 	MatF orgNormalPatch(&arenas[ThreadIndex]), normalPatch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
 		// Extract features for tracker.
-		GFilter.GetSubWindow(depthImage, orgDepthPatch, GInfoProvider.currentPositions[i],
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
-			(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
-		orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
+		GFilter.GetSubWindow(depthImage, orgDepthPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
+			(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
+		orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 		if(normalImage.Size() != 0) {
-			GFilter.GetSubWindow(normalImage, orgNormalPatch, Vector2i(GInfoProvider.currentPositions[i].x * 2, GInfoProvider.currentPositions[i].y),
-				((int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x) / 2) * 4,
-				((int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y)));
-			orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2);
+			GFilter.GetSubWindow(normalImage, orgNormalPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x * 2.0f), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+				((int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x) / 2) * 4,
+				((int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y)));
+			orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2, ResizeMode::Bicubic);
 		}
 		GInfoProvider.GetTrackFeatures(depthPatch, normalPatch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -697,10 +714,9 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 	if (params.UseSmoother) {
 		Vector2f filteredPosition;
 		for (int i = 0; i < targetCount; ++i) {
-			filteredPosition = GInfoProvider.smoother2Ds[i].Update(
-				Vector2f(GInfoProvider.currentPositions[i].x, GInfoProvider.currentPositions[i].y));
-			GInfoProvider.currentPositions[i].x = Clamp((int)filteredPosition.x, 1, depthImage.Cols() - 2);
-			GInfoProvider.currentPositions[i].y = Clamp((int)filteredPosition.y, 1, depthImage.Rows() - 2);
+			filteredPosition = GInfoProvider.smoother2Ds[i].Update(GInfoProvider.currentPositions[i]);
+			GInfoProvider.currentPositions[i].x = Clamp(filteredPosition.x, 0.0f, depthImage.Cols() - 1.0f);
+			GInfoProvider.currentPositions[i].y = Clamp(filteredPosition.y, 0.0f, depthImage.Rows() - 1.0f);
 		}
 	}
 
@@ -709,14 +725,26 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 		// Extract features for dsst.
 		MatF scaleFeature(&arenas[ThreadIndex]);
 		float newScale = 1.0f;
-		for (int i = 0; i < targetCount; ++i) {
-			GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
-				GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-				GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
-			GInfoProvider.dssts[i].GetScale(scaleFeature, GInfoProvider.scaleFactors, GInfoProvider.currentScales[i],
-				GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
-			GInfoProvider.currentScales[i] = newScale;
+		if(params.UseFastScale) {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                GInfoProvider.fdssts[i].GetScale(scaleFeature, GInfoProvider.scaleInterpFactors, GInfoProvider.currentScales[i],
+                                                GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
+                GInfoProvider.currentScales[i] = newScale;
+            }
+		} else {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                               GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                GInfoProvider.dssts[i].GetScale(scaleFeature, GInfoProvider.scaleFactors, GInfoProvider.currentScales[i],
+                                                GInfoProvider.scaleMinFactors[i], GInfoProvider.scaleMaxFactors[i], newScale);
+                GInfoProvider.currentScales[i] = newScale;
+            }
 		}
+
 		if (params.UseSmoother) {
 			for (int i = 0; i < targetCount; ++i) {
 				GInfoProvider.currentScales[i] = Clamp(GInfoProvider.smoother1Ds[i].Update(GInfoProvider.currentScales[i]),
@@ -726,15 +754,15 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 	}
 
 	// Update bounding boxes.
-	Vector2i newSize;
+	Vector2f newSize;
 	auto &bounds = GInfoProvider.currentBounds;
 	auto &positions = GInfoProvider.currentPositions;
 	for (int i = 0; i < targetCount; ++i) {
 		newSize = GInfoProvider.currentScales[i] * GInfoProvider.orgTargetSizes[i];
-		bounds[i].pMin.x = std::max(positions[i].x - newSize.x / 2, 0);
-		bounds[i].pMin.y = std::max(positions[i].y - newSize.y / 2, 0);
-		bounds[i].pMax.x = std::min(bounds[i].pMin.x + newSize.x, depthImage.Cols());
-		bounds[i].pMax.y = std::min(bounds[i].pMin.y + newSize.y, depthImage.Rows());
+		bounds[i].pMin.x = std::max(positions[i].x - newSize.x / 2, 0.0f);
+		bounds[i].pMin.y = std::max(positions[i].y - newSize.y / 2, 0.0f);
+		bounds[i].pMax.x = std::min(bounds[i].pMin.x + newSize.x, (float)depthImage.Cols());
+		bounds[i].pMax.y = std::min(bounds[i].pMin.y + newSize.y, (float)depthImage.Rows());
 	}
 	bbs = bounds;
 
@@ -753,15 +781,15 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 		// Update trackers.
 		for (int i = 0; i < targetCount; ++i) {
 			// Extract features for tracker.
-			GFilter.GetSubWindow(depthImage, orgDepthPatch, GInfoProvider.currentPositions[i],
-				(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
-				(int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
-			orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
+			GFilter.GetSubWindow(depthImage, orgDepthPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+				(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
+				(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y));
+			orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 			if(normalImage.Size() != 0) {
-				GFilter.GetSubWindow(normalImage, orgNormalPatch, Vector2i(GInfoProvider.currentPositions[i].x * 2, GInfoProvider.currentPositions[i].y),
-					((int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x) / 2) * 4,
-					((int)(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y)));
-				orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2);
+				GFilter.GetSubWindow(normalImage, orgNormalPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x * 2.0f), (int)std::floor(GInfoProvider.currentPositions[i].y)),
+					((int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x) / 2) * 4,
+					((int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.y)));
+				orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2, ResizeMode::Bicubic);
 			}
 			GInfoProvider.GetTrackFeatures(depthPatch, normalPatch, featureSize, features, GInfoProvider.window, featMask,
 				GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -775,11 +803,20 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 		if (params.UseScale) {
 			// Extract features for dsst.
 			MatF scaleFeature(&arenas[ThreadIndex]);
-			for (int i = 0; i < targetCount; ++i) {
-				GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
-					GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
-					GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
-				GInfoProvider.dssts[i].Update(scaleFeature);
+			if(params.UseFastScale) {
+                for (int i = 0; i < targetCount; ++i) {
+                    GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                                   GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                                   GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                    GInfoProvider.fdssts[i].Update(scaleFeature);
+                }
+			} else {
+                for (int i = 0; i < targetCount; ++i) {
+                    GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
+                                                   GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
+                                                   GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                    GInfoProvider.dssts[i].Update(scaleFeature);
+                }
 			}
 		}
 	} else {	// Do update work in the background thread.
@@ -805,8 +842,12 @@ void Processor::StartBackgroundUpdate(const Mat& rgbImage) {
 	bk_scales = GInfoProvider.currentScales;
 	bk_bounds = GInfoProvider.currentBounds;
 	for (auto &item : GInfoProvider.trackers) item.StartBackgroundUpdate();
-	if (params.UseScale)
-		for (auto &item : GInfoProvider.dssts) item.StartBackgroundUpdate();
+	if (params.UseScale) {
+	    if(params.UseFastScale)
+            for (auto &item : GInfoProvider.fdssts) item.StartBackgroundUpdate();
+        else
+            for (auto &item : GInfoProvider.dssts) item.StartBackgroundUpdate();
+	}
 	backgroundUpdateFlag = true;
 }
 
@@ -818,16 +859,24 @@ void Processor::StartBackgroundUpdate(const MatF& depthImage, const MatF &normal
 	bk_scales = GInfoProvider.currentScales;
 	bk_bounds = GInfoProvider.currentBounds;
 	for (auto &item : GInfoProvider.trackers) item.StartBackgroundUpdate();
-	if (params.UseScale)
-		for (auto &item : GInfoProvider.dssts) item.StartBackgroundUpdate();
+	if (params.UseScale) {
+	    if(params.UseFastScale)
+            for (auto &item : GInfoProvider.fdssts) item.StartBackgroundUpdate();
+        else
+            for (auto &item : GInfoProvider.dssts) item.StartBackgroundUpdate();
+	}
 	backgroundUpdateFlag = true;
 }
 
 void Processor::FetchUpdateResult() {
 	if (!backgroundUpdateFlag) return;
 	for (auto &item : GInfoProvider.trackers) item.FetchUpdateResult();
-	if (params.UseScale)
-		for (auto &item : GInfoProvider.dssts) item.FetchUpdateResult();
+	if (params.UseScale) {
+	    if(params.UseFastScale)
+            for (auto &item : GInfoProvider.fdssts) item.FetchUpdateResult();
+        else
+            for (auto &item : GInfoProvider.dssts) item.FetchUpdateResult();
+	}
 	backgroundUpdateFlag = false;
 }
 
@@ -845,9 +894,9 @@ void Processor::BackgroundUpdateRGB() {
 	Mat orgPatch(&arenas[ThreadIndex]), patch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
 		// Extract features for tracker.
-		GFilter.GetSubWindow(bk_rgbImage, orgPatch, bk_positions[i],
-			(int)(bk_scales[i] * GInfoProvider.templateSize.x),
-			(int)(bk_scales[i] * GInfoProvider.templateSize.y));
+		GFilter.GetSubWindow(bk_rgbImage, orgPatch, Vector2i((int)std::floor(bk_positions[i].x), (int)std::floor(bk_positions[i].y)),
+			(int)std::floor(bk_scales[i] * GInfoProvider.templateSize.x),
+			(int)std::floor(bk_scales[i] * GInfoProvider.templateSize.y));
 		orgPatch.Resize(patch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 		GInfoProvider.GetTrackFeatures(patch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -861,11 +910,20 @@ void Processor::BackgroundUpdateRGB() {
 	if (params.UseScale) {
 		// Extract features for dsst.
 		MatF scaleFeature(&arenas[ThreadIndex]);
-		for (int i = 0; i < targetCount; ++i) {
-			GInfoProvider.GetScaleFeatures(bk_rgbImage, scaleFeature, bk_positions[i],
-				GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
-				GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
-			GInfoProvider.dssts[i].BackgroundUpdate(scaleFeature);
+		if(params.UseFastScale) {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(bk_rgbImage, scaleFeature, bk_positions[i],
+                                               GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                GInfoProvider.fdssts[i].BackgroundUpdate(scaleFeature);
+            }
+		} else {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(bk_rgbImage, scaleFeature, bk_positions[i],
+                                               GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
+                GInfoProvider.dssts[i].BackgroundUpdate(scaleFeature);
+            }
 		}
 	}
 
@@ -890,15 +948,15 @@ void Processor::BackgroundUpdateDepth() {
 	MatF orgNormalPatch(&arenas[ThreadIndex]), normalPatch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
 		// Extract features for tracker.
-		GFilter.GetSubWindow(bk_depthImage, orgDepthPatch, bk_positions[i],
-			(int)(bk_scales[i] * GInfoProvider.templateSize.x),
-			(int)(bk_scales[i] * GInfoProvider.templateSize.y));
-		orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x);
+		GFilter.GetSubWindow(bk_depthImage, orgDepthPatch, Vector2i((int)std::floor(bk_positions[i].x), (int)std::floor(bk_positions[i].y)),
+			(int)std::floor(bk_scales[i] * GInfoProvider.templateSize.x),
+			(int)std::floor(bk_scales[i] * GInfoProvider.templateSize.y));
+		orgDepthPatch.Resize(depthPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, ResizeMode::Bicubic);
 		if(bk_normalImage.Size() != 0) {
-			GFilter.GetSubWindow(bk_normalImage, orgNormalPatch, Vector2i(bk_positions[i].x * 2, bk_positions[i].y),
-				((int)(bk_scales[i] * GInfoProvider.templateSize.x) / 2) * 4,
-				((int)(bk_scales[i] * GInfoProvider.templateSize.y)));
-			orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2);
+			GFilter.GetSubWindow(bk_normalImage, orgNormalPatch, Vector2i((int)std::floor(bk_positions[i].x * 2.0f), (int)std::floor(bk_positions[i].y)),
+				((int)std::floor(bk_scales[i] * GInfoProvider.templateSize.x) / 2) * 4,
+				((int)std::floor(bk_scales[i] * GInfoProvider.templateSize.y)));
+			orgNormalPatch.Resize(normalPatch, GInfoProvider.rescaledTemplateSize.y, GInfoProvider.rescaledTemplateSize.x, 2, ResizeMode::Bicubic);
 		}
 		GInfoProvider.GetTrackFeatures(depthPatch, normalPatch, featureSize, features, GInfoProvider.window, featMask,
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
@@ -912,11 +970,20 @@ void Processor::BackgroundUpdateDepth() {
 	if (params.UseScale) {
 		// Extract features for dsst.
 		MatF scaleFeature(&arenas[ThreadIndex]);
-		for (int i = 0; i < targetCount; ++i) {
-			GInfoProvider.GetScaleFeatures(bk_depthImage, bk_normalImage, scaleFeature, bk_positions[i],
-				GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
-				GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
-			GInfoProvider.dssts[i].BackgroundUpdate(scaleFeature);
+		if(params.UseFastScale) {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(bk_depthImage, bk_normalImage, scaleFeature, bk_positions[i],
+                                               GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                GInfoProvider.fdssts[i].BackgroundUpdate(scaleFeature);
+            }
+		} else {
+            for (int i = 0; i < targetCount; ++i) {
+                GInfoProvider.GetScaleFeatures(bk_depthImage, bk_normalImage, scaleFeature, bk_positions[i],
+                                               GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
+                                               GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
+                GInfoProvider.dssts[i].BackgroundUpdate(scaleFeature);
+            }
 		}
 	}
 

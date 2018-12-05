@@ -6,22 +6,22 @@
 
 using namespace cv;
 
-void ReadGT(const std::string &fileName, std::vector<Rect> & gt) {
+void ReadGT(const std::string &fileName, std::vector<Rect2d> & gt) {
     std::ifstream fin(fileName);
     if (!fin.is_open()) {
         std::cout << "ReadGT: cannot open ground truth file." << std::endl;
         return;
     }
     gt.clear();
-    int x, y, w, h;
+    double x, y, w, h;
     while (fin) {
         fin >> x >> y >> w >> h;
         if (fin.good())
-            gt.push_back(Rect(x, y, w, h));
+            gt.push_back(Rect2d(x, y, w, h));
     }
 }
 
-inline bool IsGoodBox(const Rect &bb) { return bb.area() > 0; }
+inline bool IsGoodBox(const Rect2d &bb) { return bb.area() > 0; }
 
 void GetImageFile(const std::string& foldername, std::vector<std::string> &files) {
     files.clear();
@@ -46,7 +46,7 @@ public:
             : overlapThreshold(threshold), imageScale(scale), useReinit(reinit),
               trackedFrames(0), failedFrames(0), accuracy(0.0f), robustness(0.0f) {}
 
-    void Run(const std::vector<std::string>& frames, const std::vector<Rect>& gt) {
+    void Run(const std::vector<std::string>& frames, const std::vector<Rect2d>& gt) {
         if (frames.size() < 30 || frames.size() != gt.size()) {
             std::cout << "Invalid data input for tracking." << std::endl;
             return;
@@ -61,7 +61,7 @@ public:
         const int interval = 5;
 
         Mat currentFrame, postFrame;
-        std::vector<Rect> bbs(1, Rect()), bbgts(1, Rect());
+        std::vector<Rect2d> bbs(1, Rect2d()), bbgts(1, Rect2d());
         auto &bb = bbs[0];
         auto &bbgt = bbgts[0];
         currentFrame = imread(frames[0]);
@@ -100,9 +100,7 @@ public:
             bbgt.width *= imageScale;
             bbgt.height *= imageScale;
 
-            Rect2d bbout;
-            pTracker->update(postFrame, bbout);
-            bbs[0] = bbout;
+            pTracker->update(postFrame, bbs[0]);
 
             float intersectArea = (float)(bbgt & bb).area();
             float unionArea = (float)(bbgt | bb).area();
@@ -140,11 +138,11 @@ public:
                 continue;
             }
 
-            bbgt.x /= imageScale;
-            bbgt.y /= imageScale;
-            bbgt.width /= imageScale;
-            bbgt.height /= imageScale;
-            fout << bbgt.x << "\t" << bbgt.y << "\t" << bbgt.width << "\t" << bbgt.height << std::endl;
+            bb.x /= imageScale;
+            bb.y /= imageScale;
+            bb.width /= imageScale;
+            bb.height /= imageScale;
+            fout << bb.x << "\t" << bb.y << "\t" << bb.width << "\t" << bb.height << std::endl;
             //fscore << std::to_string(score) << std::endl;
 
             ++trackedFrames;
@@ -193,7 +191,7 @@ int main() {
         std::string imgPath = basePath + "/" + sequenceName + "/img";
         std::string gtPath = basePath + "/" + sequenceName + "/gt.txt";
         std::vector<std::string> files;
-        std::vector<Rect> gt;
+        std::vector<Rect2d> gt;
         GetImageFile(imgPath, files);
         ReadGT(gtPath, gt);
         if (files.size() == 0 || gt.size() == 0 || files.size() != gt.size()) {

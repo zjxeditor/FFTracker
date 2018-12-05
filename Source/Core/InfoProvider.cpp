@@ -66,8 +66,8 @@ void InfoProvider::ResetArenas() const {
 void InfoProvider::GetScaleFeatures(
 	const Mat& img,
 	MatF& feat,
-	const Vector2i& pos,
-	const Vector2i& orgSize,
+	const Vector2f& pos,
+	const Vector2f& orgSize,
 	float currentScale,
 	const std::vector<float>& factors,
 	const MatF& window,
@@ -80,7 +80,7 @@ void InfoProvider::GetScaleFeatures(
 	Vector2i patchSize(std::floor(currentScale * factors[0] * orgSize.x),
 					   std::floor(currentScale * factors[0] * orgSize.y));
 	Mat imgPatch(&GInfoArenas[ThreadIndex]);
-	GFilter.GetSubWindow(img, imgPatch, pos, patchSize.x, patchSize.y);
+	GFilter.GetSubWindow(img, imgPatch, Vector2i(pos.x, pos.y), patchSize.x, patchSize.y);
 	MatF imgPatchF(&GInfoArenas[ThreadIndex]);
 	imgPatch.ToMatF(imgPatchF);
 	MatF resizePatchF(&GInfoArenas[ThreadIndex]);
@@ -102,7 +102,7 @@ void InfoProvider::GetScaleFeatures(
 		Vector2i scalePatchSize(std::floor(currentScale * factors[y] * orgSize.x),
 								std::floor(currentScale * factors[y] * orgSize.y));
 		Mat scaleImgPatch(&GInfoArenas[ThreadIndex]);
-		GFilter.GetSubWindow(img, scaleImgPatch, pos, scalePatchSize.x, scalePatchSize.y);
+		GFilter.GetSubWindow(img, scaleImgPatch, Vector2i(pos.x, pos.y), scalePatchSize.x, scalePatchSize.y);
 		MatF scaleImgPatchF(&GInfoArenas[ThreadIndex]);
 		scaleImgPatch.ToMatF(scaleImgPatchF);
 		MatF scaleResizePatchF(&GInfoArenas[ThreadIndex]);
@@ -125,8 +125,8 @@ void InfoProvider::GetScaleFeatures(
 void InfoProvider::GetScaleFeatures(
     const Mat& img,
     MatF& feat,
-    const Vector2i& pos,
-    const Vector2i& orgSize,
+    const Vector2f& pos,
+    const Vector2f& orgSize,
     float currentScale,
     const std::vector<float>& factors,
     const MatF& window,
@@ -139,7 +139,7 @@ void InfoProvider::GetScaleFeatures(
 	Vector2i patchSize(std::floor(currentScale * factors[0] * orgSize.x),
 					   std::floor(currentScale * factors[0] * orgSize.y));
 	Mat imgPatch(&GInfoArenas[ThreadIndex]);
-	GFilter.GetSubWindow(img, imgPatch, pos, patchSize.x, patchSize.y);
+	GFilter.GetSubWindow(img, imgPatch, Vector2i(pos.x, pos.y), patchSize.x, patchSize.y);
 	Mat resizePatch(&GInfoArenas[ThreadIndex]);
 	imgPatch.Resize(resizePatch, modelSize.y, modelSize.x);
 	std::vector<MatF> hogs;
@@ -158,7 +158,7 @@ void InfoProvider::GetScaleFeatures(
 		Vector2i scalePatchSize(std::floor(currentScale * factors[y] * orgSize.x),
 								std::floor(currentScale * factors[y] * orgSize.y));
 		Mat scaleImgPatch(&GInfoArenas[ThreadIndex]);
-		GFilter.GetSubWindow(img, scaleImgPatch, pos, scalePatchSize.x, scalePatchSize.y);
+		GFilter.GetSubWindow(img, scaleImgPatch, Vector2i(pos.x, pos.y), scalePatchSize.x, scalePatchSize.y);
 		Mat scaleResizePatch(&GInfoArenas[ThreadIndex]);
 		scaleImgPatch.Resize(scaleResizePatch, modelSize.y, modelSize.x);
 		std::vector<MatF> scaleHogs;
@@ -181,8 +181,8 @@ void InfoProvider::GetScaleFeatures(
 	const MatF& depth,
 	const MatF& normal,
 	MatF& feat,
-	const Vector2i& pos,
-	const Vector2i& orgSize,
+	const Vector2f& pos,
+	const Vector2f& orgSize,
 	float currentScale,
 	const std::vector<float>& factors,
 	const MatF& window,
@@ -202,7 +202,7 @@ void InfoProvider::GetScaleFeatures(
 		Vector2i patchSize(std::floor(currentScale * factors[0] * orgSize.x),
                            std::floor(currentScale * factors[0] * orgSize.y));
 		MatF depthPatch(&GInfoArenas[ThreadIndex]);
-		GFilter.GetSubWindow(depth, depthPatch, pos, patchSize.x, patchSize.y);
+		GFilter.GetSubWindow(depth, depthPatch, Vector2i(pos.x, pos.y), patchSize.x, patchSize.y);
 		MatF resizePatch(&GInfoArenas[ThreadIndex]);
 		depthPatch.Resize(resizePatch, modelSize.y, modelSize.x);
 		std::vector<MatF> hogs;
@@ -221,7 +221,7 @@ void InfoProvider::GetScaleFeatures(
 			Vector2i scalePatchSize(std::floor(currentScale * factors[y] * orgSize.x),
                                     std::floor(currentScale * factors[y] * orgSize.y));
 			MatF scaleDepthPatch(&GInfoArenas[ThreadIndex]);
-			GFilter.GetSubWindow(depth, scaleDepthPatch, pos, scalePatchSize.x, scalePatchSize.y);
+			GFilter.GetSubWindow(depth, scaleDepthPatch, Vector2i(pos.x, pos.y), scalePatchSize.x, scalePatchSize.y);
 			MatF scaleResizePatch(&GInfoArenas[ThreadIndex]);
 			scaleDepthPatch.Resize(scaleResizePatch, modelSize.y, modelSize.x);
 			std::vector<MatF> scaleHogs;
@@ -384,7 +384,7 @@ void InfoProvider::GetTrackFeatures(
 	}
 	if (mask & 2) {
 		MatF grayFeat(targetArena);
-		depthPatch.Resize(grayFeat, featureSize.y, featureSize.x);
+		depthPatch.Resize(grayFeat, featureSize.y, featureSize.x, ResizeMode::Bicubic);
 		feats.push_back(std::move(grayFeat));
 	}
 	if(normalPatch.Size() != 0 && (mask & 4)) {
@@ -424,7 +424,7 @@ void InfoProvider::GetTrackFeatures(
 void InfoProvider::ConfigureTargets(
 	int count,
 	const Vector2i &moveRegion,
-	const std::vector<Bounds2i> &bbs) {
+	const std::vector<Bounds2f> &bbs) {
 	if (count <= 0 || moveRegion.LengthSquared() <= 0.0f || bbs.size() < count) {
 		Critical("InfoProvider::ConfigureTargets: invalid targets configuration.");
 		return;
@@ -437,10 +437,10 @@ void InfoProvider::ConfigureTargets(
     currentBounds.resize(targetCount);
     currentPositions.resize(targetCount);
     currentScales.resize(targetCount);
-    memcpy(&currentBounds[0], &bbs[0], targetCount * sizeof(Bounds2i));
+    memcpy(&currentBounds[0], &bbs[0], targetCount * sizeof(Bounds2f));
     for (int i = 0; i < targetCount; ++i) {
         orgTargetSizes[i] = currentBounds[i].Diagonal();
-		currentPositions[i] = currentBounds[i].pMin + orgTargetSizes[i] / 2;
+		currentPositions[i] = currentBounds[i].pMin + orgTargetSizes[i] / 2.0f;
         currentScales[i] = 1.0f;
     }
 
@@ -453,7 +453,7 @@ void InfoProvider::ConfigureTargets(
 
 void InfoProvider::ConfigureTracker(
 	float localPadding,
-	int referTemplateSize,
+	float referTemplateSize,
 	float gaussianSigma,
 	bool channelWeights,
 	int pca,
@@ -473,19 +473,19 @@ void InfoProvider::ConfigureTracker(
 	templateSize.y = 0;
 	for(int i = 0; i < targetCount; ++i) {
         float pad = localPadding * sqrt(orgTargetSizes[i].x * orgTargetSizes[i].y);
-        templateSize.x += (int)(orgTargetSizes[i].x + pad);
-        templateSize.y += (int)(orgTargetSizes[i].y + pad);
+        templateSize.x += std::floor(orgTargetSizes[i].x + pad);
+        templateSize.y += std::floor(orgTargetSizes[i].y + pad);
 	}
-    templateSize.x = (int)std::round((float)templateSize.x / targetCount);
-    templateSize.y = (int)std::round((float)templateSize.y / targetCount);
-    int squareSize = (int)((templateSize.x + templateSize.y) / 2.0f);
+    templateSize.x = std::round(templateSize.x / targetCount);
+    templateSize.y = std::round(templateSize.y / targetCount);
+    float squareSize = (templateSize.x + templateSize.y) / 2.0f;
     templateSize.x = templateSize.y = squareSize;
 
     // Calculate final rescaled template size
-    rescaleRatio = sqrt(pow(referTemplateSize, 2.0f) / (templateSize.x * templateSize.y));
+    rescaleRatio = (float)sqrt(pow(referTemplateSize, 2.0f) / (templateSize.x * templateSize.y));
     if (rescaleRatio > 1.0f) rescaleRatio = 1.0f;
-    rescaledTemplateSize.x = (int)(templateSize.x * rescaleRatio);
-    rescaledTemplateSize.y = (int)(templateSize.y * rescaleRatio);
+    rescaledTemplateSize.x = (int)std::floor(templateSize.x * rescaleRatio);
+    rescaledTemplateSize.y = (int)std::floor(templateSize.y * rescaleRatio);
 
 //    rescaledTemplateSize.x = referTemplateSize;
 //    rescaledTemplateSize.y = referTemplateSize;
@@ -644,9 +644,10 @@ void InfoProvider::ConfigureSegment(
 	defaultMasks.resize(targetCount);
 	defaultMaskAreas.resize(targetCount);
 	ParallelFor([&](int64_t i) {
-		Vector2i scaledObjSize = orgTargetSizes[i] * (rescaleRatio / cellSize);
-		int x0 = std::max((cols - scaledObjSize.x) / 2, 0);
-		int y0 = std::max((rows - scaledObjSize.y) / 2, 0);
+		Vector2i scaledObjSize((int)std::floor(orgTargetSizes[i].x * rescaleRatio / cellSize),
+                               (int)std::floor(orgTargetSizes[i].y * rescaleRatio / cellSize));
+        int x0 = std::max((cols - scaledObjSize.x) / 2, 0);
+        int y0 = std::max((rows - scaledObjSize.y) / 2, 0);
 		int x1 = std::min(x0 + scaledObjSize.x, cols);
 		int y1 = std::min(y0 + scaledObjSize.y, rows);
 		defaultMasks[i].Reshape(rows, cols);
@@ -655,7 +656,7 @@ void InfoProvider::ConfigureSegment(
 			for (int x = x0; x < x1; ++x)
 				(*pd++) = 1.0f;
 		}
-		defaultMaskAreas[i] = (int)(defaultMasks[i].Mean() * defaultMasks[i].Size());
+		defaultMaskAreas[i] = defaultMasks[i].Mean() * defaultMasks[i].Size();
 	}, targetCount, 2);
 
 	// Manual specify the ellipse shaped erode kernel.
@@ -703,20 +704,21 @@ void InfoProvider::ConfigureSmoother(float stepOfScale) {
 }
 
 void InfoProvider::GetLocationPrior(
-	const Vector2i& targetSize,
+	const Vector2f& targetSize,
 	const Vector2i& imgSize,
 	MatF& prior) const {
-	int ksize = std::min(targetSize.x, targetSize.y);
+    Vector2i targetSZ;
+    targetSZ.x = targetSZ.y = (int)std::floor(std::min(targetSize.x, targetSize.y));
 	float cx = (imgSize.x - 1) / 2.0f;
 	float cy = (imgSize.y - 1) / 2.0f;
-	float kernelstride = sqrt(2.0f) / ksize;
-	prior.Reshape(imgSize.y, imgSize.x, false);
-
+    float kernelstrideX = sqrt(2.0f) / targetSZ.x;
+    float kernelstrideY = sqrt(2.0f) / targetSZ.y;
+    prior.Reshape(imgSize.y, imgSize.x, false);
 	ParallelFor([&](int64_t y) {
 		float *pd = prior.Data() + y * imgSize.x;
-		float tmpy = std::pow((cy - y) * kernelstride, 2);
+		float tmpy = std::pow((cy - y) * kernelstrideY, 2);
 		for (int x = 0; x < imgSize.x; ++x) {
-			float tmpx = std::pow((cx - x) * kernelstride, 2);
+			float tmpx = std::pow((cx - x) * kernelstrideX, 2);
 			pd[x] = KernelEpan(tmpx + tmpy);
 		}
 	}, imgSize.y, 32);
@@ -735,7 +737,7 @@ void InfoProvider::GetLocationPrior(
 
 bool InfoProvider::CheckMaskArea(
 	const MatF& mat,
-	int area) const {
+	float area) const {
 	static const float threshold = 0.05f;
 	float maskArea = mat.Mean() * mat.Size();
 	return maskArea >= threshold * area;
@@ -743,7 +745,7 @@ bool InfoProvider::CheckMaskArea(
 
 void InfoProvider::ExtractHistograms(
     const Mat &image,
-    const std::vector<Bounds2i> &bbs,
+    const std::vector<Bounds2f> &bbs,
     std::vector<Histogram> &hfs,
     std::vector<Histogram> &hbs) {
     if (bbs.size() != hfs.size() || bbs.size() != hbs.size()) {
@@ -752,25 +754,31 @@ void InfoProvider::ExtractHistograms(
     }
 
     ParallelFor([&](int64_t i) {
-        Vector2i vd = bbs[i].Diagonal();
+        Bounds2i inbb;
+        inbb.pMin.x = Clamp((int)std::floor(bbs[i].pMin.x), 0, image.Cols() - 1);
+        inbb.pMin.y = Clamp((int)std::floor(bbs[i].pMin.y), 0, image.Rows() - 1);
+        inbb.pMax.x = Clamp((int)std::floor(bbs[i].pMax.x), 0, image.Cols());
+        inbb.pMax.y = Clamp((int)std::floor(bbs[i].pMax.y), 0, image.Rows());
+
+        Vector2i vd = inbb.Diagonal();
         int offsetX = (int)(vd.x / backgroundRatio);
         int offsetY = (int)(vd.y / backgroundRatio);
         Bounds2i outbb;
-        outbb.pMin.x = std::max(0, bbs[i].pMin.x - offsetX);
-        outbb.pMin.y = std::max(0, bbs[i].pMin.y - offsetY);
-        outbb.pMax.x = std::min(image.Cols(), bbs[i].pMax.x + offsetX);
-        outbb.pMax.y = std::min(image.Rows(), bbs[i].pMax.y + offsetY);
+        outbb.pMin.x = std::max(0, inbb.pMin.x - offsetX);
+        outbb.pMin.y = std::max(0, inbb.pMin.y - offsetY);
+        outbb.pMax.x = std::min(image.Cols(), inbb.pMax.x + offsetX);
+        outbb.pMax.y = std::min(image.Rows(), inbb.pMax.y + offsetY);
 
         // Calculate probability for the foreground.
-        pFores[i] = (float)bbs[i].Area() / outbb.Area();
-        hfs[i].ExtractForeHist(image, bbs[i]);
-        hbs[i].ExtractBackHist(image, bbs[i], outbb);
+        pFores[i] = (float)inbb.Area() / outbb.Area();
+        hfs[i].ExtractForeHist(image, inbb);
+        hbs[i].ExtractBackHist(image, inbb, outbb);
     }, targetCount, 2);
 }
 
 void InfoProvider::UpdateHistograms(
 	const Mat& image,
-	const std::vector<Bounds2i> &bbs) {
+	const std::vector<Bounds2f> &bbs) {
 	// Create temporary histograms.
 	int dim = histFores[0].Dim();
 	int bin = histFores[0].Bins();
@@ -798,7 +806,7 @@ void InfoProvider::UpdateHistograms(
 
 void InfoProvider::SegmentRegion(
 	const Mat &image,
-	const std::vector<Vector2i> &objPositions,
+	const std::vector<Vector2f> &objPositions,
 	const std::vector<float> &objScales) {
 	if (objPositions.size() != targetCount || objScales.size() != targetCount) {
 		Critical("InfoProvider::SegmentRegion: invalid input parameters.");
@@ -807,11 +815,12 @@ void InfoProvider::SegmentRegion(
 
 	for (int index = 0; index < targetCount; ++index) {
 		// Calculate posterior of foreground and background.
-		Vector2i scaledTemp = templateSize * objScales[index];
-		Vector2i scaledTarget = orgTargetSizes[index] * objScales[index];
+		Vector2i scaledTemp((int)std::floor(templateSize.x * objScales[index]),
+		                    (int)std::floor(templateSize.y * objScales[index]));
+		Vector2f scaledTarget = orgTargetSizes[index] * objScales[index];
 		Bounds2i validPixels;
 		Mat patch(&GInfoArenas[ThreadIndex]);
-		GFilter.GetSubWindow(image, patch, objPositions[index], scaledTemp.x, scaledTemp.y, &validPixels);
+		GFilter.GetSubWindow(image, patch, Vector2i(objPositions[index].x, objPositions[index].y), scaledTemp.x, scaledTemp.y, &validPixels);
 		MatF fgPrior(&GInfoArenas[ThreadIndex]);
 		GetLocationPrior(scaledTarget, scaledTemp, fgPrior);
 		MatF fgPost(&GInfoArenas[ThreadIndex]), bgPost(&GInfoArenas[ThreadIndex]);

@@ -30,7 +30,7 @@ public:
 
 	// Get the new position according to previous position.
 	void GetPosition(const std::vector<MatF> &feats, float currentScale, int cellSize, float rescaleRatio,
-		const Vector2i &currentPos, const Vector2i &moveSize, Vector2i &newPos) const;
+		const Vector2f &currentPos, const Vector2i &moveSize, Vector2f &newPos) const;
 
 	// Update the tracker model.
 	void Update(const std::vector<MatF> &feats, const MatCF &yf, const MatF &filterMask);

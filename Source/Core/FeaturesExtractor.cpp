@@ -395,7 +395,7 @@ void FeaturesExtractor::GetDepthFeaturesGray(const MatF& depth, MatF &feature, c
 	for (int i = 0; i < depth.Size(); ++i)
 		*(pd++) = *(ps++) - 0.5f;
 
-	tempMat.Resize(feature, OutSize.y, OutSize.x);
+	tempMat.Resize(feature, OutSize.y, OutSize.x, ResizeMode::Bicubic);
 	GFeatArenas[ThreadIndex].Reset();
 }
 
@@ -640,7 +640,7 @@ void FeaturesExtractor::GetDepthFeaturesPolarNormal(const MatF& normal, std::vec
 	features.clear();
 	features.resize(2, MatF(targetArena));
 	ParallelFor([&](uint64_t index) {
-		tempMats[index].Resize(features[index], OutSize.y, OutSize.x);
+		tempMats[index].Resize(features[index], OutSize.y, OutSize.x, ResizeMode::Bicubic);
 	}, 2, 1);
 
 	GFeatArenas[ThreadIndex].Reset();

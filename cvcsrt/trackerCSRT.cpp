@@ -111,8 +111,7 @@ Mat TrackerCSRTImpl::calculate_response(const Mat &image, const std::vector<Mat>
 {
     Mat patch = get_subwindow(image, object_center, cvFloor(current_scale_factor * template_size.width),
         cvFloor(current_scale_factor * template_size.height));
-    //resize(patch, patch, rescaled_template_size, 0, 0, INTER_CUBIC);
-    resize(patch, patch, rescaled_template_size, 0, 0);
+    resize(patch, patch, rescaled_template_size, 0, 0, INTER_CUBIC);
 
     std::vector<Mat> ftrs = get_features(patch, yf.size());
     std::vector<Mat> Ffeatures = fourier_transform_features(ftrs);
@@ -142,8 +141,7 @@ void TrackerCSRTImpl::update_csr_filter(const Mat &image, const Mat &mask)
 {
     Mat patch = get_subwindow(image, object_center, cvFloor(current_scale_factor * template_size.width),
         cvFloor(current_scale_factor * template_size.height));
-    //resize(patch, patch, rescaled_template_size, 0, 0, INTER_CUBIC);
-    resize(patch, patch, rescaled_template_size, 0, 0);
+    resize(patch, patch, rescaled_template_size, 0, 0, INTER_CUBIC);
 
     std::vector<Mat> ftrs = get_features(patch, yf.size());
     std::vector<Mat> Fftrs = fourier_transform_features(ftrs);
@@ -197,8 +195,7 @@ std::vector<Mat> TrackerCSRTImpl::get_features(const Mat &patch, const Size2i &f
     if(params.use_gray) {
         Mat gray_m;
         cvtColor(patch, gray_m, COLOR_BGR2GRAY);
-        //resize(gray_m, gray_m, feature_size, 0, 0, INTER_CUBIC);
-        resize(gray_m, gray_m, feature_size, 0, 0);
+        resize(gray_m, gray_m, feature_size, 0, 0, INTER_CUBIC);
         gray_m.convertTo(gray_m, CV_32FC1, 1.0/255.0, -0.5);
         features.push_back(gray_m);
     }
@@ -485,7 +482,6 @@ bool TrackerCSRTImpl::updateImpl(const Mat& image_, Rect2d& boundingBox)
         filter_mask = segment_region(hsv_img, object_center,
                 template_size,original_target_size, current_scale_factor);
         resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
-        //resize(filter_mask, filter_mask, yf.size(), 0, 0);
         if(check_mask_area(filter_mask, default_mask_area)) {
             dilate(filter_mask , filter_mask, erode_element);
         } else {
@@ -574,7 +570,6 @@ bool TrackerCSRTImpl::initImpl(const Mat& image_, const Rect2d& boundingBox)
         }
         erode_element = getStructuringElement(MORPH_ELLIPSE, Size(3,3), Point(1,1));
         resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
-        //resize(filter_mask, filter_mask, yf.size(), 0, 0);
         if(check_mask_area(filter_mask, default_mask_area)) {
             dilate(filter_mask , filter_mask, erode_element);
         } else {
@@ -588,8 +583,7 @@ bool TrackerCSRTImpl::initImpl(const Mat& image_, const Rect2d& boundingBox)
     //initialize filter
     Mat patch = get_subwindow(image, object_center, cvFloor(current_scale_factor * template_size.width),
         cvFloor(current_scale_factor * template_size.height));
-    //resize(patch, patch, rescaled_template_size, 0, 0, INTER_CUBIC);
-    resize(patch, patch, rescaled_template_size, 0, 0);
+    resize(patch, patch, rescaled_template_size, 0, 0, INTER_CUBIC);
     std::vector<Mat> patch_ftrs = get_features(patch, yf.size());
     std::vector<Mat> Fftrs = fourier_transform_features(patch_ftrs);
     csr_filter = create_csr_filter(Fftrs, yf, filter_mask);

@@ -58,7 +58,7 @@ struct TrackerParams {
 
 	int AdmmIterations;		// Iteration number for optimized filter solver.
 	float Padding;			// Padding used to calculate template size. Affect how much area to search.
-	int TemplateSize;		// Specify the target template size.
+	float TemplateSize;		// Specify the target template size.
 	float GaussianSigma;	// Guassian lable sigma factor.
 
 	WindowType WindowFunc;	// Filter window function type.
@@ -83,6 +83,7 @@ struct TrackerParams {
 	int UpdateInterval;		// Update frame interval. Set to 0 or negative to disable background update mode.
 	bool UseScale;          // Whether use DSST to perform scale estimation.
 	bool UseSmoother;       // Whether use smoother to filter the tracker outputs.
+	bool UseFastScale;		// Whether use fast dsst method to estimate scale.
 };
 
 enum class TrackMode {
@@ -99,16 +100,16 @@ public:
 	void SetReinitialize();
 
 	// Initialize the system with rgb image and initial bounding boxes.
-	void Initialize(const Mat &rgbImage, const std::vector<Bounds2i> &bbs);
+	void Initialize(const Mat &rgbImage, const std::vector<Bounds2f> &bbs);
 
 	// Initialize the system with depth image, polar normal image and initial bounding boxes. Polar normal image can be empty.
-	void Initialize(const MatF &depthImage, const MatF& normalImage, const std::vector<Bounds2i> &bbs);
+	void Initialize(const MatF &depthImage, const MatF& normalImage, const std::vector<Bounds2f> &bbs);
 
 	// Update the system with rgb image and output the result bounding boxes.
-	void Update(const Mat &rgbImage, std::vector<Bounds2i> &bbs);
+	void Update(const Mat &rgbImage, std::vector<Bounds2f> &bbs);
 
 	// Update the system with depth image, polar normal image and output the result bounding boxes.
-	void Update(const MatF &depthImage, const MatF& normalImage, std::vector<Bounds2i> &bbs);
+	void Update(const MatF &depthImage, const MatF& normalImage, std::vector<Bounds2f> &bbs);
 
 private:
 	// Reset internal arenas.
@@ -134,9 +135,9 @@ private:
 	Mat bk_rgbImage;
 	MatF bk_depthImage;
 	MatF bk_normalImage;
-	std::vector<Vector2i> bk_positions;
+	std::vector<Vector2f> bk_positions;
 	std::vector<float> bk_scales;
-	std::vector<Bounds2i> bk_bounds;
+	std::vector<Bounds2f> bk_bounds;
 	bool backgroundUpdateFlag;
 	int updateCounter;
 };

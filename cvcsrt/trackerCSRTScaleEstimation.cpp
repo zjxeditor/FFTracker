@@ -42,8 +42,7 @@ public:
                     static_cast<int>(current_scale * scale_factors[s] * base_target_sz.height));
             Mat img_patch = get_subwindow(img, pos, patch_sz.width, patch_sz.height);
             img_patch.convertTo(img_patch, CV_32FC3);
-            //resize(img_patch, img_patch, Size(scale_model_sz.width, scale_model_sz.height),0,0,INTER_LINEAR);
-            resize(img_patch, img_patch, Size(scale_model_sz.width, scale_model_sz.height),0,0);
+            resize(img_patch, img_patch, Size(scale_model_sz.width, scale_model_sz.height),0,0,INTER_LINEAR);
             std::vector<Mat> hog;
             hog = get_features_hog(img_patch, 4);
             for (int i = 0; i < static_cast<int>(hog.size()); ++i) {
@@ -150,8 +149,7 @@ Mat DSST::get_scale_features(
             cvFloor(current_scale * scale_factors[0] * base_target_sz.height));
     Mat img_patch = get_subwindow(img, pos, patch_sz.width, patch_sz.height);
     img_patch.convertTo(img_patch, CV_32FC3);
-    //resize(img_patch, img_patch, Size(scale_model_sz.width, scale_model_sz.height),0,0,INTER_LINEAR);
-    resize(img_patch, img_patch, Size(scale_model_sz.width, scale_model_sz.height),0,0);
+    resize(img_patch, img_patch, Size(scale_model_sz.width, scale_model_sz.height),0,0,INTER_LINEAR);
     std::vector<Mat> hog;
     hog = get_features_hog(img_patch, 4);
     result = Mat(Size((int)scale_factors.size(), hog[0].cols * hog[0].rows * (int)hog.size()), CV_32F);

@@ -517,8 +517,7 @@ std::vector<Mat> get_features_cn(const Mat &ppatch_data, const Size &output_size
     split(cnFeatures, result);
     for (size_t i = 0; i < result.size(); i++) {
         if (output_size.width > 0 && output_size.height > 0) {
-            //resize(result.at(i), result.at(i), output_size, INTER_CUBIC);
-            resize(result.at(i), result.at(i), output_size);
+            resize(result.at(i), result.at(i), output_size, INTER_CUBIC);
         }
     }
     return result;
@@ -531,8 +530,7 @@ std::vector<Mat> get_features_rgb(const Mat &patch, const Size &output_size)
     for(size_t k=0; k<channels.size(); k++) {
         channels[k].convertTo(channels[k], CV_32F, 1.0/255.0, -0.5);
         channels[k] = channels[k] - mean(channels[k])[0];
-        //resize(channels[k], channels[k], output_size, INTER_CUBIC);
-        resize(channels[k], channels[k], output_size);
+        resize(channels[k], channels[k], output_size, INTER_CUBIC);
     }
     return channels;
 }

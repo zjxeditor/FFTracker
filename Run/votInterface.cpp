@@ -49,11 +49,12 @@ int main(int argc, char* argv[]) {
     params.UpdateInterval = 0;
     params.UseScale = true;
     params.UseSmoother = false;
+    params.UseFastScale = false;
 
     VOT vot;
-    std::vector<Bounds2i> bbs(1, Bounds2i());
+    std::vector<Bounds2f> bbs(1, Bounds2f());
     VOTRegion region = vot.region();
-    bbs[0] = Bounds2i(region.get_x(), region.get_y(), region.get_width(), region.get_height());
+    bbs[0] = Bounds2f(region.get_x(), region.get_y(), region.get_width(), region.get_height());
     string path = vot.frame();
     Mat image(path);
     int rows = image.Rows();

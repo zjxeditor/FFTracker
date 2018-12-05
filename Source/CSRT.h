@@ -63,7 +63,7 @@
 #define HOG_FEATURE_COUNT 18
 
 // With the help of OpenCV
-//#define WITH_OPENCV
+#define WITH_OPENCV
 
 namespace CSRT {
 

@@ -310,7 +310,7 @@ void Tracker::Initialize(const std::vector<MatF> &feats, const MatCF &yf, const 
 }
 
 void Tracker::GetPosition(const std::vector<MatF> &feats, float currentScale, int cellSize, float rescaleRatio,
-	const Vector2i &currentPos, const Vector2i &moveSize, Vector2i &newPos) const {
+	const Vector2f &currentPos, const Vector2i &moveSize, Vector2f &newPos) const {
 	if (!initialized) {
 		Error("Tracker::GetPosition: tracker is not initialized.");
 		return;
@@ -330,11 +330,11 @@ void Tracker::GetPosition(const std::vector<MatF> &feats, float currentScale, in
 
 	// Calculate new position.
 	float scale = currentScale * cellSize / rescaleRatio;
-	newPos = currentPos + Vector2i((int)std::round(scale * x), (int)std::round(scale * y));
+	newPos = currentPos + Vector2f(scale * x, scale * y);
 
 	// Fit to bound.
-	newPos.x = Clamp(newPos.x, 0, moveSize.x - 1);
-	newPos.y = Clamp(newPos.y, 0, moveSize.y - 1);
+	newPos.x = Clamp(newPos.x, 0.0f, moveSize.x - 1.0f);
+	newPos.y = Clamp(newPos.y, 0.0f, moveSize.y - 1.0f);
 
 	ResetArenas(false);
 }

@@ -4,22 +4,22 @@
 
 using namespace CSRT;
 
-void ReadGT(const std::string &fileName, std::vector<Bounds2i> & gt) {
+void ReadGT(const std::string &fileName, std::vector<Bounds2f> & gt) {
 	std::ifstream fin(fileName);
 	if (!fin.is_open()) {
 		Error("ReadGT: cannot open ground truth file.");
 		return;
 	}
 	gt.clear();
-	int x, y, w, h;
+	float x, y, w, h;
 	while (fin) {
 		fin >> x >> y >> w >> h;
 		if (fin.good())
-			gt.push_back(Bounds2i(x, y, w, h));
+			gt.push_back(Bounds2f(x, y, w, h));
 	}
 }
 
-inline bool IsGoodBox(const Bounds2i &bb) { return bb.Area() > 0; }
+inline bool IsGoodBox(const Bounds2f &bb) { return bb.Area() > 0; }
 
 void GetImageFile(const std::string& foldername, std::vector<std::string> &files) {
     files.clear();
@@ -44,7 +44,7 @@ public:
 		: overlapThreshold(threshold), imageScale(scale), useReinit(reinit), params(trackerParams),
 		trackedFrames(0), failedFrames(0), fps(0.0f), accuracy(0.0f), robustness(0.0f) {}
 
-	void Run(const std::vector<std::string>& frames, const std::vector<Bounds2i>& gt) {
+	void Run(const std::vector<std::string>& frames, const std::vector<Bounds2f>& gt) {
 		if (frames.size() < 30 || frames.size() != gt.size()) {
 			std::cout << "Invalid data input for tracking." << std::endl;
 			return;
@@ -59,7 +59,7 @@ public:
 		const int interval = 5;
 
 		Mat currentFrame, postFrame;
-		std::vector<Bounds2i> bbs(1, Bounds2i()), bbgts(1, Bounds2i());
+		std::vector<Bounds2f> bbs(1, Bounds2f()), bbgts(1, Bounds2f());
 		auto &bb = bbs[0];
 		auto &bbgt = bbgts[0];
 		currentFrame = Mat(frames[0]);
@@ -211,13 +211,14 @@ int main() {
 	params.UpdateInterval = 0;
 	params.UseScale = true;
 	params.UseSmoother = false;
+	params.UseFastScale = false;
 
 	if (produceVideo) {
 		std::string sequenceName = "zjx0_a1b0c1";
 		std::string imgPath = basePath + "/" + sequenceName + "/img";
 		std::string gtPath = basePath + "/" + sequenceName + "/gt.txt";
 		std::vector<std::string> files;
-		std::vector<Bounds2i> gt;
+		std::vector<Bounds2f> gt;
 		GetImageFile(imgPath, files);
 		ReadGT(gtPath, gt);
 		if (files.size() == 0 || gt.size() == 0 || files.size() != gt.size()) {
@@ -226,7 +227,7 @@ int main() {
 			return 1;
 		}
 
-		std::vector<Bounds2i> resgt;
+		std::vector<Bounds2f> resgt;
 		ReadGT("result.txt", resgt);
 		if (resgt.size() != gt.size()) {
 			std::cout << "bounding box count not match!" << std::endl;
@@ -246,8 +247,8 @@ int main() {
 			std::cout << "\b\b" << a << b;
 
 			currentFrame = cv::imread(files[i]);
-			Bounds2i &bbgt = gt[i];
-			Bounds2i &bb = resgt[i];
+			Bounds2f &bbgt = gt[i];
+			Bounds2f &bb = resgt[i];
 			cv::Rect gtrect(bbgt.pMin.x, bbgt.pMin.y, bbgt.pMax.x - bbgt.pMin.x, bbgt.pMax.y - bbgt.pMin.y);
 			cv::Rect rect(bb.pMin.x, bb.pMin.y, bb.pMax.x - bb.pMin.x, bb.pMax.y - bb.pMin.y);
 
@@ -270,7 +271,7 @@ int main() {
 			std::string imgPath = basePath + "/" + sequenceName + "/img";
 			std::string gtPath = basePath + "/" + sequenceName + "/gt.txt";
 			std::vector<std::string> files;
-			std::vector<Bounds2i> gt;
+			std::vector<Bounds2f> gt;
 			GetImageFile(imgPath, files);
 			ReadGT(gtPath, gt);
 			if (files.size() == 0 || gt.size() == 0 || files.size() != gt.size()) {

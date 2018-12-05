@@ -53,6 +53,7 @@ int main() {
 	params.UpdateInterval = 1;
 	params.UseScale = false;
 	params.UseSmoother = true;
+	params.UseFastScale = false;
 
 	// Configure camera
 	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
@@ -85,10 +86,10 @@ int main() {
 	Mat normalShowFrame;
 
 	// Create initial bounding boxes.
-	std::vector<Bounds2i> initbbs(targetCount, Bounds2i());
-	int deltaX = postWidth / (targetCount + 1);
-	int centerY = postHeight / 2;
-	int centerX = 0;
+	std::vector<Bounds2f> initbbs(targetCount, Bounds2f());
+	float deltaX = (float)postWidth / (targetCount + 1);
+	float centerY = postHeight / 2.0f;
+	float centerX = 0.0f;
 	for (int i = 0; i < targetCount; ++i) {
 		centerX += deltaX;
 		initbbs[i].pMin.x = centerX - radius;
@@ -125,22 +126,22 @@ int main() {
 			started = true;
 			pTracker->Initialize(postDepthFrame, polarNormalFrame, initbbs);
 			for (int i = 0; i < targetCount; ++i) {
-				int centerX = (initbbs[i].pMin.x + initbbs[i].pMax.x) / 2;
-				int centerY = (initbbs[i].pMin.y + initbbs[i].pMax.y) / 2;
-				int newRadius = std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2;
-				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, TrackColor, 2);
+				int centerx = (int)std::floor((initbbs[i].pMin.x + initbbs[i].pMax.x) / 2);
+				int centery = (int)std::floor((initbbs[i].pMin.y + initbbs[i].pMax.y) / 2);
+				int newRadius = (int)std::floor(std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2);
+				cv::circle(cvImage, cv::Point(centerx, centery), newRadius, TrackColor, 2);
 			}
 			startTime = TimeNow();
 			cv::flip(cvImage, cvImage, 1);
 			outputVideo.write(cvImage);
 		} else if (started) {
-			std::vector<Bounds2i> outputbbs;
+			std::vector<Bounds2f> outputbbs;
 			pTracker->Update(postDepthFrame, polarNormalFrame, outputbbs);
 			for (int i = 0; i < targetCount; ++i) {
-				int centerX = (outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2;
-				int centerY = (outputbbs[i].pMin.y + outputbbs[i].pMax.y) / 2;
-				int newRadius = std::max(outputbbs[i].pMax.x - outputbbs[i].pMin.x, outputbbs[i].pMax.y - outputbbs[i].pMin.y) / 2;
-				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, TrackColor, 2);
+				int centerx = (int)std::floor((outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2);
+				int centery = (int)std::floor((outputbbs[i].pMin.y + outputbbs[i].pMax.y) / 2);
+				int newRadius = (int)std::floor(std::max(outputbbs[i].pMax.x - outputbbs[i].pMin.x, outputbbs[i].pMax.y - outputbbs[i].pMin.y) / 2);
+				cv::circle(cvImage, cv::Point(centerx, centery), newRadius, TrackColor, 2);
 			}
 			//std::cout << score << std::endl;
 			++frames;
@@ -148,10 +149,10 @@ int main() {
 			outputVideo.write(cvImage);
 		} else {
 			for (int i = 0; i < targetCount; ++i) {
-				int centerX = (initbbs[i].pMin.x + initbbs[i].pMax.x) / 2;
-				int centerY = (initbbs[i].pMin.y + initbbs[i].pMax.y) / 2;
-				int newRadius = std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2;
-				cv::circle(cvImage, cv::Point(centerX, centerY), newRadius, WaitColor, 2);
+				int centerx = (int)std::floor((initbbs[i].pMin.x + initbbs[i].pMax.x) / 2);
+				int centery = (int)std::floor((initbbs[i].pMin.y + initbbs[i].pMax.y) / 2);
+				int newRadius = (int)std::floor(std::max(initbbs[i].pMax.x - initbbs[i].pMin.x, initbbs[i].pMax.y - initbbs[i].pMin.y) / 2);
+				cv::circle(cvImage, cv::Point(centerx, centery), newRadius, WaitColor, 2);
 			}
 			cv::flip(cvImage, cvImage, 1);
 		}
