@@ -62,66 +62,6 @@ void InfoProvider::ResetArenas() const {
 // Features used for DSST
 //
 
-#ifdef WITH_OPENCV
-void InfoProvider::GetScaleFeatures(
-	const Mat& img,
-	MatF& feat,
-	const Vector2f& pos,
-	const Vector2f& orgSize,
-	float currentScale,
-	const std::vector<float>& factors,
-	const MatF& window,
-	const Vector2i& modelSize) const {
-	if (factors.size() != window.Cols() || window.Rows() != 1) {
-		Critical("InfoProvider::GetScaleFeatures: window and factor sizes are not match.");
-		return;
-	}
-	// Get first scale level features and do initialization work.
-	Vector2i patchSize(std::floor(currentScale * factors[0] * orgSize.x),
-					   std::floor(currentScale * factors[0] * orgSize.y));
-	Mat imgPatch(&GInfoArenas[ThreadIndex]);
-	GFilter.GetSubWindow(img, imgPatch, Vector2i(pos.x, pos.y), patchSize.x, patchSize.y);
-	MatF imgPatchF(&GInfoArenas[ThreadIndex]);
-	imgPatch.ToMatF(imgPatchF);
-	MatF resizePatchF(&GInfoArenas[ThreadIndex]);
-	imgPatchF.Resize(resizePatchF, modelSize.y, modelSize.x, 3);
-	resizePatchF.ReValue(1.0f / 255.0f, 0.0f);
-	std::vector<MatF> hogs;
-	GFeatsExtractor.GetFeaturesHOG(resizePatchF, hogs, 4, &GInfoArenas[ThreadIndex]);
-	int flen = (int) hogs[0].Size();
-	int fcount = (int) hogs.size();
-	MatF featT((int) factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
-	ParallelFor([&](int64_t c) {
-		hogs[c].ReValue(window.Data()[0], 0.0f);
-		memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
-	}, fcount, 4);
-
-	// Get other scale level features in parallel.
-	ParallelFor([&](int64_t y) {
-		++y;
-		Vector2i scalePatchSize(std::floor(currentScale * factors[y] * orgSize.x),
-								std::floor(currentScale * factors[y] * orgSize.y));
-		Mat scaleImgPatch(&GInfoArenas[ThreadIndex]);
-		GFilter.GetSubWindow(img, scaleImgPatch, Vector2i(pos.x, pos.y), scalePatchSize.x, scalePatchSize.y);
-		MatF scaleImgPatchF(&GInfoArenas[ThreadIndex]);
-		scaleImgPatch.ToMatF(scaleImgPatchF);
-		MatF scaleResizePatchF(&GInfoArenas[ThreadIndex]);
-		scaleImgPatchF.Resize(scaleResizePatchF, modelSize.y, modelSize.x, 3);
-		scaleResizePatchF.ReValue(1.0f / 255.0f, 0.0f);
-		std::vector<MatF> scaleHogs;
-		GFeatsExtractor.GetFeaturesHOG(scaleResizePatchF, scaleHogs, 4, &GInfoArenas[ThreadIndex]);
-		float *pd = featT.Data() + y * featT.Cols();
-		for (int i = 0; i < fcount; ++i) {
-			scaleHogs[i].ReValue(window.Data()[y], 0.0f);
-			memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
-		}
-	}, factors.size() - 1, 2);
-
-	// Transpose the feat matrix.
-	GFFT.Transpose(featT, feat);
-	ResetArenas();
-}
-#else
 void InfoProvider::GetScaleFeatures(
     const Mat& img,
     MatF& feat,
@@ -175,7 +115,6 @@ void InfoProvider::GetScaleFeatures(
 	GFFT.Transpose(featT, feat);
 	ResetArenas();
 }
-#endif
 
 void InfoProvider::GetScaleFeatures(
 	const MatF& depth,
