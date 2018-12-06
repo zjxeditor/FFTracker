@@ -1096,6 +1096,41 @@ void Mat::Repeat(Mat &outM, int ny, int nx) const {
 	}
 }
 
+void Mat::Rotate(Mat &outM, float radians) const {
+    float a = cos(radians);
+    float b = sin(radians);
+    float c = -b;
+    float d = a;
+    outM.Reshape(rows, cols, channels);
+
+#ifdef WITH_OPENCV
+    cv::Mat cvOrgM(rows, cols, CV_8UC(channels), data);
+    cv::Mat cvDstM(rows, cols, CV_8UC(channels), outM.data);
+    cv::Point2f cvpt(cols/2.0f, rows/2.0f);
+    cv::Mat r = cv::getRotationMatrix2D(cvpt, Degrees(radians), 1.0);
+    warpAffine(cvOrgM, cvDstM, r, cv::Size(cols, rows));
+#else
+    // Bug: wrong custom rotation method.
+    const uint8_t *psrc = data;
+    uint8_t *pdest = outM.data;
+
+    float cx = (cols - 1.0f) / 2.0f;
+    float cy = (rows - 1.0f) / 2.0f;
+    int newX, newY, offset;
+    for(int y = 0; y < rows; ++y) {
+        for(int x = 0; x < cols; ++x) {
+            newX = (int)std::floor(a * (x - cx) + b * (y - cy) + cx);
+            newY = (int)std::floor(c * (x - cx) + d * (y - cy) + cy);
+            if(newX < 0 || newX >= cols || newY < 0 || newY >= rows) continue;
+            offset = newY * cols * channels + newX * channels;
+            for(int k = 0; k < channels; k++) {
+                pdest[offset+k] = *(psrc++);
+            }
+        }
+    }
+#endif
+}
+
 //
 // MatF Implementation
 //
@@ -2100,7 +2135,15 @@ void SaveToFile(const std::string &fileName, const Mat &mat) {
 		Error("SaveToFile: cannot save empty mat data.");
 		return;
 	}
+
+#ifdef WITH_OPENCV
+    cv::Mat cvImgM(mat.Rows(), mat.Cols(), CV_8UC(mat.Channels()), mat.Data());
+	cv::imwrite(fileName + ".jpg", cvImgM);
+	int res = 1;
+#else
 	int res = stbi_write_jpg((fileName + ".jpg").c_str(), mat.Cols(), mat.Rows(), mat.Channels(), mat.Data(), 80);
+#endif
+
 	if (res == 0)
 		Error("SaveToFile: cannot save mat data to path \"" + fileName + "\".");
 }

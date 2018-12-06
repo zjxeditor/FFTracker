@@ -71,49 +71,49 @@ void InfoProvider::GetScaleFeatures(
     const std::vector<float>& factors,
     const MatF& window,
     const Vector2i& modelSize) const {
-	if (factors.size() != window.Cols() || window.Rows() != 1) {
-		Critical("InfoProvider::GetScaleFeatures: window and factor sizes are not match.");
-		return;
-	}
-	// Get first scale level features and do initialization work.
-	Vector2i patchSize(std::floor(currentScale * factors[0] * orgSize.x),
-					   std::floor(currentScale * factors[0] * orgSize.y));
-	Mat imgPatch(&GInfoArenas[ThreadIndex]);
-	GFilter.GetSubWindow(img, imgPatch, Vector2i(pos.x, pos.y), patchSize.x, patchSize.y);
-	Mat resizePatch(&GInfoArenas[ThreadIndex]);
-	imgPatch.Resize(resizePatch, modelSize.y, modelSize.x);
-	std::vector<MatF> hogs;
-	GFeatsExtractor.GetFeaturesHOG(resizePatch, hogs, 4, &GInfoArenas[ThreadIndex]);
-	int flen = (int)hogs[0].Size();
-	int fcount = (int)hogs.size();
-	MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
-	ParallelFor([&](int64_t c) {
-	    hogs[c].ReValue(window.Data()[0], 0.0f);
-		memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
-	}, fcount, 4);
+    if (factors.size() != window.Cols() || window.Rows() != 1) {
+        Critical("InfoProvider::GetScaleFeatures: window and factor sizes are not match.");
+        return;
+    }
+    // Get first scale level features and do initialization work.
+    Vector2i patchSize(std::floor(currentScale * factors[0] * orgSize.x),
+                       std::floor(currentScale * factors[0] * orgSize.y));
+    Mat imgPatch(&GInfoArenas[ThreadIndex]);
+    GFilter.GetSubWindow(img, imgPatch, Vector2i(pos.x, pos.y), patchSize.x, patchSize.y);
+    Mat resizePatch(&GInfoArenas[ThreadIndex]);
+    imgPatch.Resize(resizePatch, modelSize.y, modelSize.x);
+    std::vector<MatF> hogs;
+    GFeatsExtractor.GetFeaturesHOG(resizePatch, hogs, 4, &GInfoArenas[ThreadIndex]);
+    int flen = (int)hogs[0].Size();
+    int fcount = (int)hogs.size();
+    MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
+    ParallelFor([&](int64_t c) {
+        hogs[c].ReValue(window.Data()[0], 0.0f);
+        memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
+    }, fcount, 4);
 
-	// Get other scale level features in parallel.
-	ParallelFor([&](int64_t y) {
-		++y;
-		Vector2i scalePatchSize(std::floor(currentScale * factors[y] * orgSize.x),
-								std::floor(currentScale * factors[y] * orgSize.y));
-		Mat scaleImgPatch(&GInfoArenas[ThreadIndex]);
-		GFilter.GetSubWindow(img, scaleImgPatch, Vector2i(pos.x, pos.y), scalePatchSize.x, scalePatchSize.y);
-		Mat scaleResizePatch(&GInfoArenas[ThreadIndex]);
-		scaleImgPatch.Resize(scaleResizePatch, modelSize.y, modelSize.x);
-		std::vector<MatF> scaleHogs;
-		GFeatsExtractor.GetFeaturesHOG(scaleResizePatch, scaleHogs, 4, &GInfoArenas[ThreadIndex]);
+    // Get other scale level features in parallel.
+    ParallelFor([&](int64_t y) {
+        ++y;
+        Vector2i scalePatchSize(std::floor(currentScale * factors[y] * orgSize.x),
+                                std::floor(currentScale * factors[y] * orgSize.y));
+        Mat scaleImgPatch(&GInfoArenas[ThreadIndex]);
+        GFilter.GetSubWindow(img, scaleImgPatch, Vector2i(pos.x, pos.y), scalePatchSize.x, scalePatchSize.y);
+        Mat scaleResizePatch(&GInfoArenas[ThreadIndex]);
+        scaleImgPatch.Resize(scaleResizePatch, modelSize.y, modelSize.x);
+        std::vector<MatF> scaleHogs;
+        GFeatsExtractor.GetFeaturesHOG(scaleResizePatch, scaleHogs, 4, &GInfoArenas[ThreadIndex]);
 
-		float *pd = featT.Data() + y * featT.Cols();
-		for (int i = 0; i < fcount; ++i) {
+        float *pd = featT.Data() + y * featT.Cols();
+        for (int i = 0; i < fcount; ++i) {
             scaleHogs[i].ReValue(window.Data()[y], 0.0f);
-			memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
-		}
-	}, factors.size() - 1, 2);
+            memcpy(pd + i * flen, scaleHogs[i].Data(), flen * sizeof(float));
+        }
+    }, factors.size() - 1, 2);
 
-	// Transpose the feat matrix.
-	GFFT.Transpose(featT, feat);
-	ResetArenas();
+    // Transpose the feat matrix.
+    GFFT.Transpose(featT, feat);
+    ResetArenas();
 }
 
 void InfoProvider::GetScaleFeatures(
@@ -218,6 +218,68 @@ void InfoProvider::GetScaleFeatures(
 		GFFT.Transpose(featT, feat);
 		ResetArenas();
 	}
+}
+
+//
+// Features used for rotation estimation
+//
+
+void InfoProvider::GetRotationFeatures(
+        const Mat& img,
+        MatF& feat,
+        const Vector2f& pos,
+        const Vector2f& orgSize,
+        float currentScale,
+        const std::vector<float>& factors,
+        const MatF& window,
+        const Vector2i& modelSize) const {
+    if (factors.size() != window.Cols() || window.Rows() != 1) {
+        Critical("InfoProvider::GetScaleFeatures: window and factor sizes are not match.");
+        return;
+    }
+
+    // Get the patch.
+    Vector2f patchSize(currentScale * orgSize.x, currentScale * orgSize.y);
+    int diameter = (int)std::ceil(sqrt(pow(patchSize.x, 2.0f) + pow(patchSize.y, 2.0f)));
+    int ksize = (int)std::ceil(sqrt(2.0f) * diameter);
+    Mat basePatch(&GInfoArenas[ThreadIndex]);
+    GFilter.GetSubWindow(img, basePatch, Vector2i((int)pos.x, (int)pos.y), ksize, ksize);
+    Mat resizePatch(&GInfoArenas[ThreadIndex]);
+    basePatch.Resize(resizePatch, (int)std::ceil(modelSize.y * sqrt(2.0f)), (int)std::ceil(modelSize.x * sqrt(2.0f)));
+    Vector2i newCenter(resizePatch.Cols() / 2, resizePatch.Rows() / 2);
+
+    // Calculate first rotation factor
+    Mat orgPatch(&GInfoArenas[ThreadIndex]), patch(&GInfoArenas[ThreadIndex]);
+    resizePatch.Rotate(orgPatch, factors[0]);
+    GFilter.GetSubWindow(orgPatch, patch, newCenter, modelSize.x, modelSize.y);
+    std::vector<MatF> hogs;
+    GFeatsExtractor.GetFeaturesHOG(patch, hogs, 4, &GInfoArenas[ThreadIndex]);
+    int flen = (int)hogs[0].Size();
+    int fcount = (int)hogs.size();
+    MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
+    ParallelFor([&](int64_t c) {
+        hogs[c].ReValue(window.Data()[0], 0.0f);
+        memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
+    }, fcount, 4);
+
+    // Get other scale level features in parallel.
+    ParallelFor([&](int64_t y) {
+        ++y;
+        Mat rotOrgPatch(&GInfoArenas[ThreadIndex]), rotPatch(&GInfoArenas[ThreadIndex]);
+        resizePatch.Rotate(rotOrgPatch, factors[y]);
+        GFilter.GetSubWindow(rotOrgPatch, rotPatch, newCenter, modelSize.x, modelSize.y);
+        std::vector<MatF> rotHogs;
+        GFeatsExtractor.GetFeaturesHOG(rotPatch, rotHogs, 4, &GInfoArenas[ThreadIndex]);
+        float *pd = featT.Data() + y * featT.Cols();
+        for (int i = 0; i < fcount; ++i) {
+            rotHogs[i].ReValue(window.Data()[y], 0.0f);
+            memcpy(pd + i * flen, rotHogs[i].Data(), flen * sizeof(float));
+        }
+    }, factors.size() - 1, 2);
+
+    // Transpose the feat matrix.
+    GFFT.Transpose(featT, feat);
+    ResetArenas();
 }
 
 //
@@ -376,11 +438,13 @@ void InfoProvider::ConfigureTargets(
     currentBounds.resize(targetCount);
     currentPositions.resize(targetCount);
     currentScales.resize(targetCount);
+    currentRotations.resize(targetCount);
     memcpy(&currentBounds[0], &bbs[0], targetCount * sizeof(Bounds2f));
     for (int i = 0; i < targetCount; ++i) {
         orgTargetSizes[i] = currentBounds[i].Diagonal();
 		currentPositions[i] = currentBounds[i].pMin + orgTargetSizes[i] / 2.0f;
         currentScales[i] = 1.0f;
+        currentRotations[i] = 0.0f;
     }
 
     cellSize = 0;
@@ -456,6 +520,7 @@ void InfoProvider::ConfigureTracker(
 	}
 
 	// Create trackers.
+	trackers.clear();
 	trackers.resize(targetCount, Tracker(channelWeights, pca, iteration, learnRateOfChannel, learnRateOfFilter));
 }
 
@@ -505,6 +570,7 @@ void InfoProvider::ConfigureDSST(
 	scaleModelSize.y = (int)(templateSize.y * scaleModelFactor);
 
 	// Create dssts.
+    dssts.clear();
 	dssts.resize(targetCount, DSST(learnRateOfScale));
 }
 
@@ -561,6 +627,7 @@ void InfoProvider::ConfigureFDSST(int numberOfInterpScales, float stepOfScale, f
     }
 
     // Create fdssts.
+    fdssts.clear();
     fdssts.resize(targetCount, FDSST(learnRateOfScale));
 }
 
@@ -628,6 +695,8 @@ void InfoProvider::ConfigureSmoother(float stepOfScale) {
 		return;
 	}
 
+	smoother1Ds.clear();
+	smoother2Ds.clear();
 	smoother1Ds.resize(targetCount);
 	smoother2Ds.resize(targetCount);
 	int referScale = 0;
@@ -640,6 +709,46 @@ void InfoProvider::ConfigureSmoother(float stepOfScale) {
 		smoother1Ds[i].Init(params1D);
 		smoother2Ds[i].Init(params2D);
 	}
+}
+
+void InfoProvider::ConfigureRotation(
+        int numberOfRotation,
+        float sigmaFactor,
+        float learnRateOfRotation,
+        float maxArea) {
+    if(numberOfRotation <= 1) {
+        Critical("InfoProvider::ConfigureRotation: invalid rotation configuration.");
+        return;
+    }
+
+    rotationCount = numberOfRotation;
+    if (rotationCount % 2 == 0) // Rotation count must be odd number.
+        ++rotationCount;
+
+    // Calculate standard response, scale factors and scale window.
+    float rotationSigma = sqrt((float)rotationCount) * sigmaFactor;
+    MatF gs(1, rotationCount, GInfoArenas);
+    rotationFactors.resize(rotationCount);
+    float delta = 2.0f * Pi / (rotationCount-1);
+    float rr = -Pi;
+    for (int i = 0; i < rotationCount; ++i) {
+        gs.Data()[i] = exp(-0.5f * pow(rr, 2) / pow(rotationSigma, 2));
+        rotationFactors[i] = rr;
+        rr += delta;
+    }
+    GFilter.HannWin(rotationWindow, Vector2i(rotationCount, 1));
+    GFFT.FFT2Row(gs, rotationGSF);
+
+    // Calculate scale model size for this DSST.
+    float rotationModelFactor = 1.0f;
+    if (templateSize.x * templateSize.y > maxArea)
+        rotationModelFactor = sqrt(maxArea / (templateSize.x * templateSize.y));
+    rotationModelSize.x = (int)(templateSize.x * rotationModelFactor);
+    rotationModelSize.y = (int)(templateSize.y * rotationModelFactor);
+
+    // Create dssts.
+    rotors.clear();
+    rotors.resize(targetCount, RotationEstimator(learnRateOfRotation));
 }
 
 void InfoProvider::GetLocationPrior(

@@ -169,7 +169,7 @@ int main() {
 	std::string basePath = "/Users/jxzhang/Learn/handtrack/HandData";
 	std::vector<std::string> sequenceNames = { "zjx0_a0b0c0", "zjx0_a0b0c1", "zjx0_a0b1c0", "zjx0_a0b1c1",
 		"zjx0_a1b0c0" , "zjx0_a1b0c1" , "zjx0_a1b1c0" , "zjx0_a1b1c1" };
-	//std::vector<std::string> sequenceNames = { "zjx0_a1b1c0" };
+	//std::vector<std::string> sequenceNames = { "zjx0_a0b1c1" };
 	float scale = 0.4f;
 	bool produceVideo = false;
 
@@ -208,13 +208,13 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 0;
+	params.UpdateInterval = 1;
 	params.UseScale = true;
 	params.UseSmoother = false;
 	params.UseFastScale = false;
 
 	if (produceVideo) {
-		std::string sequenceName = "zjx0_a1b0c1";
+		std::string sequenceName = "ants";
 		std::string imgPath = basePath + "/" + sequenceName + "/img";
 		std::string gtPath = basePath + "/" + sequenceName + "/gt.txt";
 		std::vector<std::string> files;
@@ -228,14 +228,14 @@ int main() {
 		}
 
 		std::vector<Bounds2f> resgt;
-		ReadGT("result.txt", resgt);
+		ReadGT("result0.txt", resgt);
 		if (resgt.size() != gt.size()) {
 			std::cout << "bounding box count not match!" << std::endl;
 			return 1;
 		}
 		int len = (int)gt.size();
 		cv::VideoWriter voutput;
-		voutput.open("p_" + sequenceName + ".avi", CV_FOURCC('M', 'J', 'P', 'G'), 30.0, cv::Size(720, 1280));
+		voutput.open("p_" + sequenceName + ".avi", CV_FOURCC('M', 'J', 'P', 'G'), 30.0, cv::Size(1024, 1024));
 
 		cv::Mat currentFrame;
 		int percent = 0, a = 0, b = 0;

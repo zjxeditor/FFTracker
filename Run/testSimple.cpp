@@ -1,63 +1,123 @@
 #include "../Source/Core/Processor.h"
 #include "../Source/Camera/Camera.h"
 #include "../Source/Core/Filter.h"
-#include <opencv2/opencv.hpp>
 #include <iostream>
+#include <fstream>
 
-inline int modul(int a, int b)
-{
-    // function calculates the module of two numbers and it takes into account also negative numbers
-    return ((a % b) + b) % b;
-}
+using namespace CSRT;
 
-cv::Mat circshift(cv::Mat matrix, int dx, int dy)
-{
-    cv::Mat matrix_out = matrix.clone();
-    int idx_y = 0;
-    int idx_x = 0;
-    for(int i=0; i<matrix.rows; i++) {
-        for(int j=0; j<matrix.cols; j++) {
-            idx_y = modul(i+dy+1, matrix.rows);
-            idx_x = modul(j+dx+1, matrix.cols);
-            matrix_out.at<float>(idx_y, idx_x) = matrix.at<float>(i,j);
-        }
+void RotateBounds(Bounds2f& bb, float radians) {
+    float s = sin(radians);
+    float c = cos(radians);
+    float cx = (bb.pMin.x + bb.pMax.x) / 2.0f;
+    float cy = (bb.pMin.y + bb.pMax.y) / 2.0f;
+    float l = std::numeric_limits<float>::max();
+    float r = std::numeric_limits<float>::min();
+    float t = std::numeric_limits<float>::max();
+    float b = std::numeric_limits<float>::min();
+    float nx, ny;
+
+    float xs[4] = {bb.pMin.x, bb.pMax.x, bb.pMax.x, bb.pMin.x};
+    float ys[4] = {bb.pMin.y, bb.pMin.y, bb.pMax.y, bb.pMax.y};
+    for(int i = 0; i < 4; ++i) {
+        nx = cx+(xs[i]-cx)*c+(ys[i]-cy)*s;
+        ny = cy-(xs[i]-cx)*s+(ys[i]-cy)*c;
+        if(nx < l) l = nx;
+        if(nx > r) r = nx;
+        if(ny < t) t = ny;
+        if(ny > b) b = ny;
     }
-    return matrix_out;
+
+    bb.pMin.x = l;
+    bb.pMin.y = t;
+    bb.pMax.x = r;
+    bb.pMax.y = b;
 }
 
-cv::Mat gaussian_shaped_labels(const float sigma, const int w, const int h)
-{
-    // create 2D Gaussian peak, convert to Fourier space and stores it into the yf
-    cv::Mat y = cv::Mat::zeros(h, w, CV_32F);
-    float w2 = static_cast<float>(cvFloor(w / 2));
-    float h2 = static_cast<float>(cvFloor(h / 2));
-
-    // calculate for each pixel separatelly
-    for(int i=0; i<y.rows; i++) {
-        for(int j=0; j<y.cols; j++) {
-            y.at<float>(i,j) = (float)exp((-0.5 / pow(sigma, 2)) * (pow((i+1-h2), 2) + pow((j+1-w2), 2)));
-        }
-    }
-    // wrap-arround with the circulat shifting
-    y = circshift(y, -cvFloor(y.cols / 2), -cvFloor(y.rows / 2));
-    cv::Mat yf;
-    dft(y, yf, cv::DFT_COMPLEX_OUTPUT);
-    return yf;
-}
 
 int main() {
-    CSRT::StartSystem();
+    StartSystem();
 
-    CSRT::Vector2i size(6, 6);
-    CSRT::MatCF res;
-    CSRT::GFilter.GaussianShapedLabels(res, 1.0f, size.x, size.y);
-    CSRT::Info("csrt:");
-    CSRT::PrintMat(res);
+//    Mat img("/Users/jxzhang/Desktop/test.jpg");
+//    Mat roted;
+//
+//    int rotationCount = 8;
+//    std::vector<float> rotationFactors(rotationCount);
+//    float delta = 2.0f * Pi / rotationCount;
+//    float rr = 0.0f;
+//    for(int i = 0; i <rotationCount; ++i) {
+//        rotationFactors[i] = rr;
+//        rr += delta;
+//    }
+//
+//    for(int i = 0; i < rotationCount; ++i) {
+//        img.Rotate(roted, rotationFactors[i]);
+//        SaveToFile(StringPrintf("rot%d", i), roted);
+//    }
 
-    cv::Mat cvRes = gaussian_shaped_labels(1.0f, size.x, size.y);
-    CSRT::Info("cv:");
-    std::cout << cvRes <<std::endl;
+//    Bounds2f bb;
+//    bb.pMin.x = 0.0f;
+//    bb.pMin.y = 0.0f;
+//    bb.pMax.x = 4.0f;
+//    bb.pMax.y = 4.0f;
+//
+//    int rotationCount = 8;
+//    std::vector<float> rotationFactors(rotationCount);
+//    float delta = 2.0f * Pi / rotationCount;
+//    float rr = 0.0f;
+//    for(int i = 0; i <rotationCount; ++i) {
+//        rotationFactors[i] = rr;
+//        rr += delta;
+//    }
+//
+//    for(int i = 0; i < rotationCount; ++i) {
+//        Bounds2f rbb = bb;
+//        RotateBounds(rbb, rotationFactors[i]);
+//        std::cout << rbb << std::endl;
+//    }
 
-    CSRT::CloseSystem();
+//    std::ifstream fin("/Users/jxzhang/Learn/handtrack/HandData/ants/groundtruth.txt");
+//    std::ofstream fout("/Users/jxzhang/Learn/handtrack/HandData/ants/gt.txt");
+
+    float xs[4];
+    float ys[4];
+    char temp;
+    float l, t, r, b;
+
+    for(int i = 0; i < 579; ++i) {
+        fin >> xs[0];
+        fin >> temp;
+        fin >> ys[0];
+        fin >> temp;
+        fin >> xs[1];
+        fin >> temp;
+        fin >> ys[1];
+        fin >> temp;
+        fin >> xs[2];
+        fin >> temp;
+        fin >> ys[2];
+        fin >> temp;
+        fin >> xs[3];
+        fin >> temp;
+        fin >> ys[3];
+
+        l = std::numeric_limits<float>::max();
+        r = std::numeric_limits<float>::min();
+        t = std::numeric_limits<float>::max();
+        b = std::numeric_limits<float>::min();
+
+        for(int k = 0; k < 4; ++k) {
+            if(xs[k] < l) l = xs[k];
+            if(xs[k] > r) r = xs[k];
+            if(ys[k] < t) t = ys[k];
+            if(ys[k] > b) b = ys[k];
+        }
+        fout << l << "\t" << t << "\t" << (r - l) << "\t" << (b - t) << std::endl;
+    }
+
+    fin.close();
+    fout.close();
+
+    CloseSystem();
     return 0;
 }

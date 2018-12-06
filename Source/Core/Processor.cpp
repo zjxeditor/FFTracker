@@ -304,6 +304,7 @@ void Processor::SetReinitialize() {
 		updateCounter = 0;
 		backgroundUpdateFlag = false;
 		BackgroundWait();
+        FetchUpdateResult();
 	}
 	initialized = false;
 }

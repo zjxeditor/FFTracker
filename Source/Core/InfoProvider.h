@@ -18,6 +18,7 @@
 #include "DSST.h"
 #include "FDSST.h"
 #include "Tracker.h"
+#include "RotationEstimator.h"
 
 namespace CSRT {
 
@@ -44,6 +45,10 @@ public:
 	void GetScaleFeatures(const MatF &depth, const MatF &normal, MatF &feat, const Vector2f &pos, const Vector2f &orgSize, float currentScale,
 		const std::vector<float> &factors, const MatF &window, const Vector2i &modelSize, bool useNormal) const;
 
+	// Get image features used for rotation estimation, only HOG features are applied.
+    void GetRotationFeatures(const Mat& img, MatF& feat, const Vector2f& pos, const Vector2f& orgSize, float currentScale,
+            const std::vector<float>& factors, const MatF& window, const Vector2i& modelSize) const;
+
 	// Get image features used for tracker. Features types are stored in mask. 
 	// 1 bit -> HOG; 2 bit -> CN; 3 bit -> GRAY; 4 bit -> RGB.
 	// cellSize and hogNum are only used for HOG features.
@@ -64,6 +69,7 @@ public:
     void ConfigureFDSST(int numberOfInterpScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea);
 	void ConfigureSegment(int histDim, int histBin, float bgRatio, float learnRateOfHist, int regularCount, float maxSegArea);
 	void ConfigureSmoother(float stepOfScale);
+    void ConfigureRotation(int numberOfRotation, float sigmaFactor, float learnRateOfRotation, float maxArea);
 
 	// Extract foreground histogram and background histogram.
 	void ExtractHistograms(const Mat &image, const std::vector<Bounds2f> &bbs, std::vector<Histogram> &hfs, std::vector<Histogram> &hbs);
@@ -76,6 +82,7 @@ public:
 	Vector2f GetCurrentPosition(int i) { return currentPositions[i]; }
 	float GetCurrentScale(int i) { return currentScales[i]; }
 	Bounds2f GetCurrentBounds(int i) { return currentBounds[i]; }
+	float GetCurrentRotation(int i) { return currentRotations[i]; }
 
 private:
 	// Calculate spatial location prior.
@@ -95,6 +102,7 @@ private:
 	std::vector<Bounds2f> currentBounds;		// Current targets' bounding box.
 	std::vector<Vector2f> currentPositions;		// Current targets' positions.
 	std::vector<float> currentScales;			// Current targets' scale factors.
+	std::vector<float> currentRotations;        // Current targets' rotation factors in radians.
 
 	// Members used for Tracker.
 	Vector2f templateSize;						// Template size for tracking local region.
@@ -128,6 +136,13 @@ private:
 	int postRegularCount;						// Iteration count for post regularization.
 	float maxSegmentArea;						// The maximum area used for segmentation.
 
+	// Members used for rotation estimation.
+    int rotationCount;							// Total rotation count.
+    Vector2i rotationModelSize;					// Final calculation size.
+    MatCF rotationGSF;							// Ideal frequency response, a single row.
+    MatF rotationWindow;						// Signal window.
+    std::vector<float> rotationFactors;			// Calculated scale factors of each level.
+
 	// Smooth filter for each tracker.
 	std::vector<FilterDoubleExponential1D> smoother1Ds;
 	std::vector<FilterDoubleExponential2D> smoother2Ds;
@@ -136,6 +151,7 @@ private:
 	std::vector<Tracker> trackers;
 	std::vector<DSST> dssts;
     std::vector<FDSST> fdssts;
+    std::vector<RotationEstimator> rotors;
 };
 
 // Global Feature Provider

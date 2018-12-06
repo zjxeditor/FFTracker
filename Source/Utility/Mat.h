@@ -140,6 +140,8 @@ public:
 	void Reduce(MatF &outM, ReduceMode mode, bool toRow) const;
 	// Repeat matrix.
 	void Repeat(Mat &outM, int ny, int nx) const;
+	// Rotate the current mat for specific radians.
+	void Rotate(Mat &outM, float radians) const;
 
 private:
 	// Mat Private Data
