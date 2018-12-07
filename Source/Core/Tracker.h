@@ -46,10 +46,13 @@ private:
 	// Optimization solver for the CSRDCF tracker.
 	// Y is the initial response. P is the spatial mask. All the input features has been trasformed int to frequency space.
 	void CreateFilters(const std::vector<MatCF> &feats, const MatCF &Y, const MatF &P, std::vector<MatCF> &filters, MemoryArena *targetArena = nullptr) const;
+    void CreateFilters1(const std::vector<MatCF> &feats, const std::vector<MatCF> &HTS, const MatCF &Y, const MatF &P, std::vector<MatCF> &filters, MemoryArena *targetArena = nullptr) const;
 	// G = (Sxy + mu * H - L) / (Sxx + mu).
 	void CalcGMHelper(const MatCF &Sxy, const MatCF &Sxx, const MatCF &H, const MatCF &L, MatCF &G, float mu) const;
 	// H = FFT2(FFTInv2(mu * G + L) / (lambda + mu) * P).
 	void CalcHMHelper(const MatCF &G, const MatCF &L, const MatF &P, MatCF &H, MatF &h, float mu, float lambda) const;
+    // H = FFT2(FFTInv2(mu * G + L + mu1 * HT + L1) / (lambda + mu + mu1) * P).
+    void CalcHMHelper1(const MatCF &G, const MatCF &L, const MatCF &HT, const MatCF &L1, const MatF &P, MatCF &H, MatF &h, float mu, float mu1, float lambda) const;
 	// L = L + mu * (G - H).
 	void CalcLMHelper(const MatCF &G, const MatCF &H, MatCF &L, float mu) const;
 

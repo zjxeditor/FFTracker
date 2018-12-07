@@ -73,6 +73,61 @@ void Tracker::CreateFilters(const std::vector<MatCF>& feats, const MatCF& Y, con
 	}, len, 1);
 }
 
+void Tracker::CreateFilters1(const std::vector<MatCF>& feats, const std::vector<MatCF> &HTS, const MatCF& Y, const MatF& P, std::vector<MatCF>& filters, MemoryArena *targetArena) const {
+    int len = (int)feats.size();
+    filters.clear();
+    filters.resize(len, MatCF(targetArena));
+    for (int i = 0; i < len; ++i)
+        filters[i].Reshape(Y.Rows(), Y.Cols(), false);
+
+    ParallelFor([&](int64_t index) {
+        float mu = 5.0f;
+        float mu1 = 5.0f;
+        float beta = 3.0f;
+        float beta1 = 3.0f;
+        float mu_max = 20.0f;
+        float mu_max1 = 20.0f;
+        float lambda = mu / 100.0f;
+
+        const MatCF &F = feats[index];
+        MatCF &H = filters[index];
+        MatCF Sxy(&arenas[ThreadIndex]), Sxx(&arenas[ThreadIndex]);
+        MatF h(&arenas[ThreadIndex]);
+        // Initialize.
+        GFilter.MulSpectrums(F, Y, Sxy, true);	// Sxy = F * Y.
+        GFilter.MulSpectrums(F, F, Sxx, true);	// Sxx = F * F.
+        // H = Sxy / [Sxx + lambda].
+        GFilter.DivideComplexMatrices(Sxy, Sxx, H, ComplexF(lambda, lambda));
+        GFFT.FFTInv2(H, h, true);
+        h.CMul(P);
+        GFFT.FFT2(h, H);
+        MatCF L(H.Rows(), H.Cols(), &arenas[ThreadIndex]);	// Lagrangian multiplier.
+        MatCF L1(H.Rows(), H.Cols(), &arenas[ThreadIndex]);	// Lagrangian multiplier.
+        MatCF G(H.Rows(), H.Cols(), &arenas[ThreadIndex]);
+
+        for (int iteration = 0; iteration < iterations - 1; ++iteration) {
+            // G = (Sxy + mu * H - L) / (Sxx + mu).
+            CalcGMHelper(Sxy, Sxx, H, L, G, mu);
+            // H = FFT2(FFTInv2(mu * G + L + mu1 * HT + L1) / (lambda + mu + mu1) * P).
+            CalcHMHelper1(G, L, HTS[index], L1, P, H, h, mu, mu1, lambda);
+            // Update variables for next iteration.
+            // L = L + mu * (G - H).
+            CalcLMHelper(G, H, L, mu);
+            // L1 = L1 + mu1 * (HT - H).
+            CalcLMHelper(HTS[index], H, L1, mu1);
+
+            mu = std::min(mu_max, beta*mu);
+            mu1 = std::min(mu_max1, beta1*mu1);
+        }
+        // G = (Sxy + mu * H - L) / (Sxx + mu).
+        CalcGMHelper(Sxy, Sxx, H, L, G, mu);
+        // H = FFT2(FFTInv2(mu * G + L + mu1 * HT + L1) / (lambda + mu + mu1) * P).
+        CalcHMHelper1(G, L, HTS[index], L1, P, H, h, mu, mu1, lambda);
+    }, len, 1);
+}
+
+
+
 void Tracker::CalcGMHelper(const MatCF& Sxy, const MatCF& Sxx, const MatCF& H, const MatCF& L, MatCF& G, float mu) const {
 	const ComplexF *psxy = Sxy.Data();
 	const ComplexF *psxx = Sxx.Data();
@@ -108,6 +163,33 @@ void Tracker::CalcHMHelper(const MatCF& G, const MatCF& L, const MatF& P, MatCF&
 
 	// H = FFT2(h).
 	GFFT.FFT2(h, H);
+}
+
+void Tracker::CalcHMHelper1(const MatCF &G, const MatCF &L, const MatCF &HT, const MatCF &L1, const MatF &P, MatCF &H, MatF &h, float mu, float mu1, float lambda) const {
+    const ComplexF *pG = G.Data();
+    const ComplexF *pL = L.Data();
+    const ComplexF *pHT = HT.Data();
+    const ComplexF *pL1 = L1.Data();
+    const float *pP = P.Data();
+    ComplexF *pH = H.Data();
+    float *ph = h.Data();
+
+    // H = FFT2(FFTInv2(mu * G + L + mu1 * HT + L1) / (lambda + mu + mu1) * P).
+
+    // H = mu * G + L + mu1 * HT + L1.
+    for (int i = 0; i < H.Size(); ++i)
+        *(pH++) = mu * (*(pG++)) + *(pL++) + mu1 * (*(pHT++)) + *(pL1++);
+
+    // h = FFTInv2(H).
+    GFFT.FFTInv2(H, h, true);
+
+    // h = h * lm * P.
+    float lm = 1.0f / (lambda + mu + mu1);
+    for (int i = 0; i < h.Size(); ++i)
+        *(ph++) *= (lm * (*(pP++)));
+
+    // H = FFT2(h).
+    GFFT.FFT2(h, H);
 }
 
 void Tracker::CalcLMHelper(const MatCF& G, const MatCF& H, MatCF& L, float mu) const {

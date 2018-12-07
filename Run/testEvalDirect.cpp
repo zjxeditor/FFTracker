@@ -169,7 +169,7 @@ int main() {
 	std::string basePath = "/Users/jxzhang/Learn/handtrack/HandData";
 	std::vector<std::string> sequenceNames = { "zjx0_a0b0c0", "zjx0_a0b0c1", "zjx0_a0b1c0", "zjx0_a0b1c1",
 		"zjx0_a1b0c0" , "zjx0_a1b0c1" , "zjx0_a1b1c0" , "zjx0_a1b1c1" };
-	//std::vector<std::string> sequenceNames = { "zjx0_a0b1c1" };
+	//std::vector<std::string> sequenceNames = { "ants" };
 	float scale = 0.4f;
 	bool produceVideo = false;
 
