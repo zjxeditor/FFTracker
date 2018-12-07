@@ -372,6 +372,7 @@ float Filter::SubpixelPeak(const MatF& inM, const Vector2i& p, SubpixelDirection
 		Critical("Filter::SubpixelPeak: unknown subpixel peak diraction.");
 		return 0.0f;
 	}
+	// Use parabola method.
 	float delta = 0.5f * (p_r - p_l) / (2 * p0 - p_r - p_l);
 	if (!std::isfinite(delta)) {
 		delta = 0.0f;

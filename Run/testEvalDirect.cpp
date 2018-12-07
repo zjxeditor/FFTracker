@@ -208,7 +208,7 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 1;
+	params.UpdateInterval = 0;
 	params.UseScale = true;
 	params.UseSmoother = false;
 	params.UseFastScale = false;
