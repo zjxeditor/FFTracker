@@ -831,7 +831,7 @@ void InfoProvider::ExtractHistograms(
         pFores[i] = (float)inbb.Area() / outbb.Area();
         hfs[i].ExtractForeHist(image, inbb);
         hbs[i].ExtractBackHist(image, inbb, outbb);
-    }, targetCount, 2);
+    }, bbs.size(), 2);
 }
 
 void InfoProvider::UpdateHistograms(

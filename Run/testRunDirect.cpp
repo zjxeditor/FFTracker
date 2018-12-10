@@ -15,7 +15,7 @@ int main() {
 
 	float scale = 0.8f;
 	int radius = 40;
-	int targetCount = 1;
+	int targetCount = 2;
 
 	TrackerParams params;
 	//params.UseHOG = true;
@@ -53,7 +53,7 @@ int main() {
 	params.UseHOG = true;
 	params.UseCN = true;
 	params.UseGRAY = true;
-	params.UseRGB = true;
+	params.UseRGB = false;
 	params.UseDepthHOG = true;
 	params.UseDepthGray = true;
 	params.UseDepthNormal = true;
@@ -154,7 +154,7 @@ int main() {
 		} else if (started) {
 			std::vector<Bounds2f> outputbbs;
 			pTracker->Update(postFrame, outputbbs);
-			std::cout << GInfoProvider.GetScorePos(0) <<std::endl;
+			//std::cout << GInfoProvider.GetScorePos(0) <<std::endl;
 			for (int i = 0; i < targetCount; ++i) {
 				int centerx = (int)std::floor((outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2);
 				int centery = (int)std::floor((outputbbs[i].pMin.y + outputbbs[i].pMax.y) / 2);
