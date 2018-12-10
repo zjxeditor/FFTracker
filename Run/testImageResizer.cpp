@@ -16,9 +16,9 @@ int main() {
 
     CSRT::Mat resized;
     for(int i = 0; i < 4; ++i) {
-        image.Resize(resized, scaleRatio[i], scaleRatio[i], false);
+        image.Resize(resized, scaleRatio[i], scaleRatio[i], CSRT::ResizeMode::Bilinear);
         CSRT::SaveToFile("bilinear_" + std::to_string(scaleRatio[i]), resized);
-        image.Resize(resized, scaleRatio[i], scaleRatio[i], true);
+        image.Resize(resized, scaleRatio[i], scaleRatio[i], CSRT::ResizeMode::Nearest);
         CSRT::SaveToFile("nearest" + std::to_string(scaleRatio[i]), resized);
     }
 

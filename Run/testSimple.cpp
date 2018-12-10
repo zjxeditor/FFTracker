@@ -76,48 +76,6 @@ int main() {
 //        std::cout << rbb << std::endl;
 //    }
 
-//    std::ifstream fin("/Users/jxzhang/Learn/handtrack/HandData/ants/groundtruth.txt");
-//    std::ofstream fout("/Users/jxzhang/Learn/handtrack/HandData/ants/gt.txt");
-
-    float xs[4];
-    float ys[4];
-    char temp;
-    float l, t, r, b;
-
-    for(int i = 0; i < 579; ++i) {
-        fin >> xs[0];
-        fin >> temp;
-        fin >> ys[0];
-        fin >> temp;
-        fin >> xs[1];
-        fin >> temp;
-        fin >> ys[1];
-        fin >> temp;
-        fin >> xs[2];
-        fin >> temp;
-        fin >> ys[2];
-        fin >> temp;
-        fin >> xs[3];
-        fin >> temp;
-        fin >> ys[3];
-
-        l = std::numeric_limits<float>::max();
-        r = std::numeric_limits<float>::min();
-        t = std::numeric_limits<float>::max();
-        b = std::numeric_limits<float>::min();
-
-        for(int k = 0; k < 4; ++k) {
-            if(xs[k] < l) l = xs[k];
-            if(xs[k] > r) r = xs[k];
-            if(ys[k] < t) t = ys[k];
-            if(ys[k] > b) b = ys[k];
-        }
-        fout << l << "\t" << t << "\t" << (r - l) << "\t" << (b - t) << std::endl;
-    }
-
-    fin.close();
-    fout.close();
-
     CloseSystem();
     return 0;
 }
