@@ -129,6 +129,7 @@ set(CSRT_SOURCE
         Source/Core/Segment.cpp
         Source/Core/Tracker.cpp
         Source/Core/FeatureColorName.cpp
+        Source/Core/Kalman.cpp
         Source/Export/CSRTracker.cpp)
 
 set(CSRT_HEADERS
@@ -149,6 +150,7 @@ set(CSRT_HEADERS
         Source/Core/Processor.h
         Source/Core/Segment.h
         Source/Core/Tracker.h
+        Source/Core/Kalman.h
         Source/Export/CSRTracker.h)
 
 include_directories(

@@ -19,7 +19,7 @@ namespace CSRT {
 Tracker::Tracker(bool channelWeights, int pca, int iter, float learnRateOfChannel, float learnRateOfFilter) :
 	initialized(false), useChannelWeights(channelWeights), pcaCount(pca), iterations(iter),
 	weightsLearnRate(learnRateOfChannel), filterLearnRate(learnRateOfFilter), 
-	arenas(nullptr), backgroundUpdateFlag(false) {}
+	arenas(nullptr), backgroundUpdateFlag(false), targetArea(0.0f), k(0.0f) {}
 
 Tracker::~Tracker() {
 	if (arenas) {
@@ -125,8 +125,6 @@ void Tracker::CreateFilters1(const std::vector<MatCF>& feats, const std::vector<
         CalcHMHelper1(G, L, HTS[index], L1, P, H, h, mu, mu1, lambda);
     }, len, 1);
 }
-
-
 
 void Tracker::CalcGMHelper(const MatCF& Sxy, const MatCF& Sxx, const MatCF& H, const MatCF& L, MatCF& G, float mu) const {
 	const ComplexF *psxy = Sxy.Data();
@@ -242,24 +240,30 @@ void Tracker::CalculateResponse(const std::vector<MatF>& ftrs, const std::vector
 			float maxValue;
 			Vector2i maxLoc;
 			resps[k].MaxLoc(maxValue, maxLoc);
-			for (int y = maxLoc.y - supressRadius; y <= maxLoc.y + supressRadius; ++y) {
-				for (int x = maxLoc.x - supressRadius; x <= maxLoc.x + supressRadius; ++x) {
-					int ny = Mod(y, height);
-					int nx = Mod(x, width);
-					*(resps[k].Data() + width * ny + nx) *= -1.0f;
-				}
-			}
-			float subMaxValue;
-			Vector2i subMaxLoc;
-			resps[k].MaxLoc(subMaxValue, subMaxLoc);
-			detectWeights[k] = std::max(1.0f - (subMaxValue / maxValue), 0.5f) * filterWeights[k];
-			for (int y = maxLoc.y - supressRadius; y <= maxLoc.y + supressRadius; ++y) {
-				for (int x = maxLoc.x - supressRadius; x <= maxLoc.x + supressRadius; ++x) {
-					int ny = Mod(y, height);
-					int nx = Mod(x, width);
-					*(resps[k].Data() + width * ny + nx) *= -1.0f;
-				}
-			}
+
+			float subValue;
+			Vector2i subLoc;
+			FindSubPeak(resps[k], maxLoc, subLoc, subValue);
+            detectWeights[k] = std::max(1.0f - (subValue / maxValue), 0.5f) * filterWeights[k];
+
+//			for (int y = maxLoc.y - supressRadius; y <= maxLoc.y + supressRadius; ++y) {
+//				for (int x = maxLoc.x - supressRadius; x <= maxLoc.x + supressRadius; ++x) {
+//					int ny = Mod(y, height);
+//					int nx = Mod(x, width);
+//					*(resps[k].Data() + width * ny + nx) *= -1.0f;
+//				}
+//			}
+//			float subMaxValue;
+//			Vector2i subMaxLoc;
+//			resps[k].MaxLoc(subMaxValue, subMaxLoc);
+//			detectWeights[k] = std::max(1.0f - (subMaxValue / maxValue), 0.5f) * filterWeights[k];
+//			for (int y = maxLoc.y - supressRadius; y <= maxLoc.y + supressRadius; ++y) {
+//				for (int x = maxLoc.x - supressRadius; x <= maxLoc.x + supressRadius; ++x) {
+//					int ny = Mod(y, height);
+//					int nx = Mod(x, width);
+//					*(resps[k].Data() + width * ny + nx) *= -1.0f;
+//				}
+//			}
 		}, len, 2);
 
 		response.Reshape(height, width);
@@ -297,6 +301,85 @@ void Tracker::CalculateResponse(const std::vector<MatF>& ftrs, const std::vector
 //    GFFT.FFTInv2(respf, response);
 }
 
+float Tracker::CalculateScore(const MatF &response, const Vector2i &pos, float maxResp) const {
+    const static int offsetX[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    const static int offsetY[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    const int rows = response.Rows();
+    const int cols = response.Cols();
+
+    float distance = 0.0f;
+    float score = std::numeric_limits<float>::max();
+    bool peakFlag = false;
+    int tx = 0, ty = 0;
+    float cvalue = 0.0f, tscore = 0.0f;
+    for(int r = 0; r < rows; ++r) {
+        for(int c = 0; c < cols; ++c) {
+            if(r == pos.y && c == pos.x) continue;
+            // judge peak
+            peakFlag = true;
+            cvalue = response.Get(r, c);
+            for(int i = 0; i < 8; ++i) {
+                tx = c + offsetX[i];
+                ty = r + offsetY[i];
+                tx = Mod(tx, cols);
+                ty = Mod(ty, rows);
+                if(response.Get(ty, tx) >= cvalue) {
+                    peakFlag = false;
+                    break;
+                }
+            }
+            if(!peakFlag) continue;
+
+            // calculate value
+            distance = std::pow(pos.x - c, 2.0f) + std::pow(pos.y - r, 2.0f);
+            distance = 1.0f - std::exp(-k / 2.0f * distance);
+            tscore = (maxResp - cvalue) / distance;
+            if(tscore < score) score = tscore;
+        }
+    }
+
+    return score;
+}
+
+void Tracker::FindSubPeak(const MatF &response, const Vector2i &peakPos, Vector2i &subPos, float &subValue) const {
+    const static int offsetX[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    const static int offsetY[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    const int rows = response.Rows();
+    const int cols = response.Cols();
+    subValue = 0.0f;
+
+    bool peakFlag = false;
+    int tx = 0, ty = 0;
+    float cvalue = 0.0f;
+    for(int r = 0; r < rows; ++r) {
+        for(int c = 0; c < cols; ++c) {
+            if(r == peakPos.y && c == peakPos.x) continue;
+            // judge peak
+            peakFlag = true;
+            cvalue = response.Get(r, c);
+            for(int i = 0; i < 8; ++i) {
+                tx = c + offsetX[i];
+                ty = r + offsetY[i];
+                tx = Mod(tx, cols);
+                ty = Mod(ty, rows);
+                if(response.Get(ty, tx) >= cvalue) {
+                    peakFlag = false;
+                    break;
+                }
+            }
+            if(!peakFlag) continue;
+
+            // calculate value
+            if(cvalue > subValue) {
+                subValue = cvalue;
+                subPos.x = c;
+                subPos.y = r;
+            }
+        }
+    }
+}
+
 void Tracker::ResetArenas(bool background) const {
 	if (!arenas) return;
 	int len = MaxThreadIndex() - 1;
@@ -312,7 +395,7 @@ void Tracker::ResetArenas(bool background) const {
 // Tracker Main Interface
 //
 
-void Tracker::Initialize(const std::vector<MatF> &feats, const MatCF &yf, const MatF &filterMask) {
+void Tracker::Initialize(const std::vector<MatF> &feats, const MatCF &yf, const MatF &filterMask, float orgArea) {
 	if (initialized) return;
 	initialized = true;
 	if (!arenas)
@@ -327,6 +410,12 @@ void Tracker::Initialize(const std::vector<MatF> &feats, const MatCF &yf, const 
 		Critical("Tracker::Initialize: ideal response and filter mask not match.");
 		return;
 	}
+	if(orgArea <= 0.0f) {
+        Critical("Tracker::Initialize: invalid target area.");
+        return;
+	}
+	targetArea = orgArea;
+    k = 8.0f / targetArea;
 
 	// Initialize filter.
 	std::vector<MatCF> Fftrs;
@@ -392,7 +481,7 @@ void Tracker::Initialize(const std::vector<MatF> &feats, const MatCF &yf, const 
 }
 
 void Tracker::GetPosition(const std::vector<MatF> &feats, float currentScale, int cellSize, float rescaleRatio,
-	const Vector2f &currentPos, const Vector2i &moveSize, Vector2f &newPos) const {
+	const Vector2f &currentPos, const Vector2i &moveSize, Vector2f &newPos, float &score) const {
 	if (!initialized) {
 		Error("Tracker::GetPosition: tracker is not initialized.");
 		return;
@@ -403,6 +492,7 @@ void Tracker::GetPosition(const std::vector<MatF> &feats, float currentScale, in
 	float maxValue;
 	Vector2i maxLoc;
 	response.MaxLoc(maxValue, maxLoc);
+	score = CalculateScore(response, maxLoc, maxValue);
 
 	// Take into account also subpixel accuracy.
 	float x = maxLoc.x + GFilter.SubpixelPeak(response, maxLoc, SubpixelDirection::Horizontal);

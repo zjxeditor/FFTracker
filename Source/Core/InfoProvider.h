@@ -19,6 +19,7 @@
 #include "FDSST.h"
 #include "Tracker.h"
 #include "RotationEstimator.h"
+#include "Kalman.h"
 
 namespace CSRT {
 
@@ -74,15 +75,16 @@ public:
 	// Extract foreground histogram and background histogram.
 	void ExtractHistograms(const Mat &image, const std::vector<Bounds2f> &bbs, std::vector<Histogram> &hfs, std::vector<Histogram> &hbs);
 	// Update histogram model.
-	void UpdateHistograms(const Mat &image, const std::vector<Bounds2f> &bbs);
+	void UpdateHistograms(const Mat &image, const std::vector<Bounds2f> &bbs, bool *goodFlags);
 	// Segment the target object foreground.
-	void SegmentRegion(const Mat &image, const std::vector<Vector2f> &objPositions, const std::vector<float> &objScales);
+	void SegmentRegion(const Mat &image, const std::vector<Vector2f> &objPositions, const std::vector<float> &objScales, bool *goodFlags);
 
 	// Get current target's information.
 	Vector2f GetCurrentPosition(int i) { return currentPositions[i]; }
 	float GetCurrentScale(int i) { return currentScales[i]; }
 	Bounds2f GetCurrentBounds(int i) { return currentBounds[i]; }
 	float GetCurrentRotation(int i) { return currentRotations[i]; }
+	float GetScorePos(int i) { return posScores[i]; }
 
 private:
 	// Calculate spatial location prior.
@@ -146,12 +148,19 @@ private:
 	// Smooth filter for each tracker.
 	std::vector<FilterDoubleExponential1D> smoother1Ds;
 	std::vector<FilterDoubleExponential2D> smoother2Ds;
+	std::vector<Kalman2D> kalman2Ds;
 
 	// Track components.
 	std::vector<Tracker> trackers;
 	std::vector<DSST> dssts;
     std::vector<FDSST> fdssts;
     std::vector<RotationEstimator> rotors;
+
+    // Track scores.
+    std::vector<float> posScores;
+    std::vector<std::deque<float>> posScoreHistory;
+    std::vector<float> posMeanScores;
+    const int posHistoryCount = 10;
 };
 
 // Global Feature Provider

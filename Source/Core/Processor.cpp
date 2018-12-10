@@ -255,11 +255,12 @@ TrackerParams::TrackerParams() {
 	UseScale = true;
 	UseSmoother = false;
 	UseFastScale = false;
+    FailThreshold = 0.08f;
 }
 
 Processor::Processor(const TrackerParams& trackParams, int count, const Vector2i &moveSize, TrackMode mode) :
 	params(trackParams), targetCount(count), moveRegion(moveSize), trackMode(mode), featMask(0), initialized(false), 
-	arenas(nullptr), backgroundUpdateFlag(false), updateCounter(0) {
+	arenas(nullptr), backgroundUpdateFlag(false), updateCounter(0), bk_goodFlags(nullptr) {
 	if (params.NumHOGChannelsUsed > HOG_FEATURE_COUNT)
 		Critical("Processor::Processor: used hog feature number is greater than hog feature total count.");
 	if (trackMode == TrackMode::RGB) {
@@ -285,6 +286,10 @@ Processor::~Processor() {
 	if (arenas) {
 		delete[] arenas;
 		arenas = nullptr;
+	}
+	if(bk_goodFlags) {
+	    delete[] bk_goodFlags;
+        bk_goodFlags = nullptr;
 	}
 }
 
@@ -355,7 +360,7 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2f>& bbs
 		Mat hsvImg(&arenas[ThreadIndex]);
 		rgbImage.RGBToHSV(hsvImg);
 		GInfoProvider.ExtractHistograms(hsvImg, GInfoProvider.currentBounds, GInfoProvider.histFores, GInfoProvider.histBacks);
-		GInfoProvider.SegmentRegion(hsvImg, GInfoProvider.currentPositions, GInfoProvider.currentScales);
+		GInfoProvider.SegmentRegion(hsvImg, GInfoProvider.currentPositions, GInfoProvider.currentScales, nullptr);
 	}
 
 	// Initialize trackers.
@@ -372,9 +377,17 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2f>& bbs
 			GInfoProvider.cellSize, params.NumHOGChannelsUsed, &arenas[ThreadIndex]);
 
 		if (params.UseSegmentation)
-			GInfoProvider.trackers[i].Initialize(features, GInfoProvider.yf, GInfoProvider.filterMasks[i]);
+			GInfoProvider.trackers[i].Initialize(features, GInfoProvider.yf, GInfoProvider.filterMasks[i], GInfoProvider.orgTargetSizes[i].x * GInfoProvider.orgTargetSizes[i].y);
 		else
-			GInfoProvider.trackers[i].Initialize(features, GInfoProvider.yf, GInfoProvider.defaultMasks[i]);
+			GInfoProvider.trackers[i].Initialize(features, GInfoProvider.yf, GInfoProvider.defaultMasks[i], GInfoProvider.orgTargetSizes[i].x * GInfoProvider.orgTargetSizes[i].y);
+
+        // Initialize position history score.
+        Vector2f tempNewPos;
+        GInfoProvider.trackers[i].GetPosition(features, GInfoProvider.currentScales[i], GInfoProvider.cellSize, GInfoProvider.rescaleRatio,
+                GInfoProvider.currentPositions[i], GInfoProvider.moveSize, tempNewPos, GInfoProvider.posScores[i]);
+        GInfoProvider.posScoreHistory[i].clear();
+        GInfoProvider.posScoreHistory[i].push_back(GInfoProvider.posScores[i]);
+        GInfoProvider.posMeanScores[i] = GInfoProvider.posScores[i];
 	}
 
 	// Initialize dssts.
@@ -397,6 +410,9 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2f>& bbs
             }
 		}
 	}
+
+	if(bk_goodFlags) delete[] bk_goodFlags;
+	bk_goodFlags = new bool[targetCount];
 
 	ResetArenas(false);
 	ResetArenas(true);
@@ -454,7 +470,7 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 		else
 			depthImage.ToMat(img, 1, 255.0f);
 		GInfoProvider.ExtractHistograms(img, GInfoProvider.currentBounds, GInfoProvider.histFores, GInfoProvider.histBacks);
-		GInfoProvider.SegmentRegion(img, GInfoProvider.currentPositions, GInfoProvider.currentScales);
+		GInfoProvider.SegmentRegion(img, GInfoProvider.currentPositions, GInfoProvider.currentScales, nullptr);
 	}
 
 	// Extract features for tracker.
@@ -480,10 +496,20 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 	// Initialize trackers.
 	if (params.UseSegmentation) {
 		for (int i = 0; i < targetCount; ++i)
-			GInfoProvider.trackers[i].Initialize(features[i], GInfoProvider.yf, GInfoProvider.filterMasks[i]);
+			GInfoProvider.trackers[i].Initialize(features[i], GInfoProvider.yf, GInfoProvider.filterMasks[i], GInfoProvider.orgTargetSizes[i].x * GInfoProvider.orgTargetSizes[i].y);
 	} else {
 		for (int i = 0; i < targetCount; ++i)
-			GInfoProvider.trackers[i].Initialize(features[i], GInfoProvider.yf, GInfoProvider.defaultMasks[i]);
+			GInfoProvider.trackers[i].Initialize(features[i], GInfoProvider.yf, GInfoProvider.defaultMasks[i], GInfoProvider.orgTargetSizes[i].x * GInfoProvider.orgTargetSizes[i].y);
+	}
+
+    // Initialize position history score.
+	for(int i = 0; i < targetCount; ++i) {
+        Vector2f tempNewPos;
+        GInfoProvider.trackers[i].GetPosition(features[i], GInfoProvider.currentScales[i], GInfoProvider.cellSize, GInfoProvider.rescaleRatio,
+                                              GInfoProvider.currentPositions[i], GInfoProvider.moveSize, tempNewPos, GInfoProvider.posScores[i]);
+        GInfoProvider.posScoreHistory[i].clear();
+        GInfoProvider.posScoreHistory[i].push_back(GInfoProvider.posScores[i]);
+        GInfoProvider.posMeanScores[i] = GInfoProvider.posScores[i];
 	}
 
 	if (params.UseScale) {
@@ -506,6 +532,9 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 		}
 	}
 
+    if(bk_goodFlags) delete[] bk_goodFlags;
+    bk_goodFlags = new bool[targetCount];
+
 	ResetArenas(false);
 	ResetArenas(true);
 }
@@ -527,6 +556,15 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 	}
 	bbs.resize(targetCount);
 
+	// Predict
+    float state[4];
+    for(int i = 0; i < targetCount; ++i) {
+        GInfoProvider.kalman2Ds[i].Predict(&state[0]);
+        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
+        GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
+    }
+
 	// Get new positions.
 	Vector2f newPosition;
 	std::vector<MatF> features;
@@ -543,7 +581,7 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 
 		GInfoProvider.trackers[i].GetPosition(
 			features, GInfoProvider.currentScales[i], GInfoProvider.cellSize, GInfoProvider.rescaleRatio,
-			GInfoProvider.currentPositions[i], GInfoProvider.moveSize, newPosition);
+			GInfoProvider.currentPositions[i], GInfoProvider.moveSize, newPosition, GInfoProvider.posScores[i]);
 		GInfoProvider.currentPositions[i] = newPosition;
 	}
 	if (params.UseSmoother) {
@@ -588,6 +626,45 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 		}
 	}
 
+	// Judge position tracking quality.
+    bool *goodPosFlags = ALLOCA(bool, targetCount);
+	for(int i = 0; i < targetCount; ++i) {
+        goodPosFlags[i] = GInfoProvider.posScores[i] / GInfoProvider.posMeanScores[i] >= params.FailThreshold;
+	    if(goodPosFlags[i]) {
+	        if(GInfoProvider.posScoreHistory[i].size() >= GInfoProvider.posHistoryCount) {
+                GInfoProvider.posMeanScores[i] =
+                        (GInfoProvider.posMeanScores[i] * GInfoProvider.posScoreHistory[i].size() - GInfoProvider.posScoreHistory[i].front() + GInfoProvider.posScores[i])
+                        / GInfoProvider.posScoreHistory[i].size();
+                GInfoProvider.posScoreHistory[i].pop_front();
+                GInfoProvider.posScoreHistory[i].push_back(GInfoProvider.posScores[i]);
+	        } else {
+                GInfoProvider.posMeanScores[i] =
+                        (GInfoProvider.posMeanScores[i] * GInfoProvider.posScoreHistory[i].size() + GInfoProvider.posScores[i])
+                        / (GInfoProvider.posScoreHistory[i].size() + 1);
+                GInfoProvider.posScoreHistory[i].push_back(GInfoProvider.posScores[i]);
+	        }
+	    }
+	}
+
+	// Correct
+	float measure[2];
+    for(int i = 0; i < targetCount; ++i) {
+        if(goodPosFlags[i]) {
+            measure[0] = GInfoProvider.currentPositions[i].x;
+            measure[1] = GInfoProvider.currentPositions[i].y;
+        } else {
+            GInfoProvider.kalman2Ds[i].Predict(&state[0]);
+            measure[0] = state[0];
+            measure[1] = state[1];
+            measure[0] = Clamp(measure[0], 0.0f, GInfoProvider.moveSize.x - 1.0f);
+            measure[1] = Clamp(measure[1], 0.0f, GInfoProvider.moveSize.y - 1.0f);
+        }
+        GInfoProvider.kalman2Ds[i].Correct(&measure[0], &state[0]);
+        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
+        GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
+    }
+
 	// Update bounding boxes.
 	Vector2f newSize;
 	auto &bounds = GInfoProvider.currentBounds;
@@ -607,11 +684,12 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 		if (params.UseSegmentation) {
 			Mat hsvImg(&arenas[ThreadIndex]);
 			rgbImage.RGBToHSV(hsvImg);
-			GInfoProvider.UpdateHistograms(hsvImg, GInfoProvider.currentBounds);
-			GInfoProvider.SegmentRegion(hsvImg, GInfoProvider.currentPositions, GInfoProvider.currentScales);
+			GInfoProvider.UpdateHistograms(hsvImg, GInfoProvider.currentBounds, goodPosFlags);
+			GInfoProvider.SegmentRegion(hsvImg, GInfoProvider.currentPositions, GInfoProvider.currentScales, goodPosFlags);
 		}
 		// Update trackers.
 		for (int i = 0; i < targetCount; ++i) {
+		    if(!goodPosFlags[i]) continue;
 			// Extract features for tracker.
 			GFilter.GetSubWindow(rgbImage, orgPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
 				(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
@@ -631,6 +709,7 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 			MatF scaleFeature(&arenas[ThreadIndex]);
 			if(params.UseFastScale) {
 			    for (int i = 0; i < targetCount; ++i) {
+                    if(!goodPosFlags[i]) continue;
                     GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
                                                    GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
                                                    GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
@@ -638,6 +717,7 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 			    }
 			} else {
                 for (int i = 0; i < targetCount; ++i) {
+                    if(!goodPosFlags[i]) continue;
                     GInfoProvider.GetScaleFeatures(rgbImage, scaleFeature, GInfoProvider.currentPositions[i],
                                                    GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
                                                    GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
@@ -651,7 +731,7 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 			updateCounter = 0;
 			BackgroundWait();
 			FetchUpdateResult();
-			StartBackgroundUpdate(rgbImage);
+			StartBackgroundUpdate(rgbImage, goodPosFlags);
 			BackgroundProcess([&]() {
 				BackgroundUpdateRGB();
 			});
@@ -686,6 +766,15 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 	}
 	bbs.resize(targetCount);
 
+    // Predict
+    float state[4];
+    for(int i = 0; i < targetCount; ++i) {
+        GInfoProvider.kalman2Ds[i].Predict(&state[0]);
+        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
+        GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
+    }
+
 	// Get new positions.
 	Vector2f newPosition;
 	std::vector<MatF> features;
@@ -709,7 +798,7 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 
 		GInfoProvider.trackers[i].GetPosition(
 			features, GInfoProvider.currentScales[i], GInfoProvider.cellSize, GInfoProvider.rescaleRatio,
-			GInfoProvider.currentPositions[i], GInfoProvider.moveSize, newPosition);
+			GInfoProvider.currentPositions[i], GInfoProvider.moveSize, newPosition, GInfoProvider.posScores[i]);
 		GInfoProvider.currentPositions[i] = newPosition;
 	}
 	if (params.UseSmoother) {
@@ -754,6 +843,45 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 		}
 	}
 
+    // Judge position tracking quality.
+    bool *goodPosFlags = ALLOCA(bool, targetCount);
+    for(int i = 0; i < targetCount; ++i) {
+        goodPosFlags[i] = GInfoProvider.posScores[i] / GInfoProvider.posMeanScores[i] >= params.FailThreshold;
+        if(goodPosFlags[i]) {
+            if(GInfoProvider.posScoreHistory[i].size() >= GInfoProvider.posHistoryCount) {
+                GInfoProvider.posMeanScores[i] =
+                        (GInfoProvider.posMeanScores[i] * GInfoProvider.posScoreHistory[i].size() - GInfoProvider.posScoreHistory[i].front() + GInfoProvider.posScores[i])
+                        / GInfoProvider.posScoreHistory[i].size();
+                GInfoProvider.posScoreHistory[i].pop_front();
+                GInfoProvider.posScoreHistory[i].push_back(GInfoProvider.posScores[i]);
+            } else {
+                GInfoProvider.posMeanScores[i] =
+                        (GInfoProvider.posMeanScores[i] * GInfoProvider.posScoreHistory[i].size() + GInfoProvider.posScores[i])
+                        / (GInfoProvider.posScoreHistory[i].size() + 1);
+                GInfoProvider.posScoreHistory[i].push_back(GInfoProvider.posScores[i]);
+            }
+        }
+    }
+
+    // Correct
+    float measure[2];
+    for(int i = 0; i < targetCount; ++i) {
+        if(goodPosFlags[i]) {
+            measure[0] = GInfoProvider.currentPositions[i].x;
+            measure[1] = GInfoProvider.currentPositions[i].y;
+        } else {
+            GInfoProvider.kalman2Ds[i].Predict(&state[0]);
+            measure[0] = state[0];
+            measure[1] = state[1];
+            measure[0] = Clamp(measure[0], 0.0f, GInfoProvider.moveSize.x - 1.0f);
+            measure[1] = Clamp(measure[1], 0.0f, GInfoProvider.moveSize.y - 1.0f);
+        }
+        GInfoProvider.kalman2Ds[i].Correct(&measure[0], &state[0]);
+        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
+        GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
+    }
+
 	// Update bounding boxes.
 	Vector2f newSize;
 	auto &bounds = GInfoProvider.currentBounds;
@@ -776,11 +904,12 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 				normalImage.ToMat(img, 2, 255.0f);
 			else
 				depthImage.ToMat(img, 1, 255.0f);
-			GInfoProvider.UpdateHistograms(img, GInfoProvider.currentBounds);
-			GInfoProvider.SegmentRegion(img, GInfoProvider.currentPositions, GInfoProvider.currentScales);
+			GInfoProvider.UpdateHistograms(img, GInfoProvider.currentBounds, goodPosFlags);
+			GInfoProvider.SegmentRegion(img, GInfoProvider.currentPositions, GInfoProvider.currentScales, goodPosFlags);
 		}
 		// Update trackers.
 		for (int i = 0; i < targetCount; ++i) {
+		    if(!goodPosFlags[i]) continue;
 			// Extract features for tracker.
 			GFilter.GetSubWindow(depthImage, orgDepthPatch, Vector2i((int)std::floor(GInfoProvider.currentPositions[i].x), (int)std::floor(GInfoProvider.currentPositions[i].y)),
 				(int)std::floor(GInfoProvider.currentScales[i] * GInfoProvider.templateSize.x),
@@ -806,6 +935,7 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 			MatF scaleFeature(&arenas[ThreadIndex]);
 			if(params.UseFastScale) {
                 for (int i = 0; i < targetCount; ++i) {
+                    if(!goodPosFlags[i]) continue;
                     GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
                                                    GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
                                                    GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
@@ -813,6 +943,7 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
                 }
 			} else {
                 for (int i = 0; i < targetCount; ++i) {
+                    if(!goodPosFlags[i]) continue;
                     GInfoProvider.GetScaleFeatures(depthImage, normalImage, scaleFeature, GInfoProvider.currentPositions[i],
                                                    GInfoProvider.orgTargetSizes[i], GInfoProvider.currentScales[i], GInfoProvider.scaleFactors,
                                                    GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
@@ -826,7 +957,7 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 			updateCounter = 0;
 			BackgroundWait();
 			FetchUpdateResult();
-			StartBackgroundUpdate(depthImage, normalImage);
+			StartBackgroundUpdate(depthImage, normalImage, goodPosFlags);
 			BackgroundProcess([&]() {
 				BackgroundUpdateDepth();
 			});
@@ -836,12 +967,13 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 	ResetArenas(false);
 }
 
-void Processor::StartBackgroundUpdate(const Mat& rgbImage) {
+void Processor::StartBackgroundUpdate(const Mat& rgbImage, bool *goodFlags) {
 	if (backgroundUpdateFlag) return;
 	bk_rgbImage = rgbImage;
 	bk_positions = GInfoProvider.currentPositions;
 	bk_scales = GInfoProvider.currentScales;
 	bk_bounds = GInfoProvider.currentBounds;
+	if(goodFlags != nullptr) memcpy(bk_goodFlags, goodFlags, sizeof(bool) * targetCount);
 	for (auto &item : GInfoProvider.trackers) item.StartBackgroundUpdate();
 	if (params.UseScale) {
 	    if(params.UseFastScale)
@@ -852,13 +984,14 @@ void Processor::StartBackgroundUpdate(const Mat& rgbImage) {
 	backgroundUpdateFlag = true;
 }
 
-void Processor::StartBackgroundUpdate(const MatF& depthImage, const MatF &normalImage) {
+void Processor::StartBackgroundUpdate(const MatF& depthImage, const MatF &normalImage, bool *goodFlags) {
 	if (backgroundUpdateFlag) return;
 	bk_depthImage = depthImage;
 	bk_normalImage = normalImage;
 	bk_positions = GInfoProvider.currentPositions;
 	bk_scales = GInfoProvider.currentScales;
 	bk_bounds = GInfoProvider.currentBounds;
+    if(goodFlags != nullptr) memcpy(bk_goodFlags, goodFlags, sizeof(bool) * targetCount);
 	for (auto &item : GInfoProvider.trackers) item.StartBackgroundUpdate();
 	if (params.UseScale) {
 	    if(params.UseFastScale)
@@ -886,14 +1019,15 @@ void Processor::BackgroundUpdateRGB() {
 	if (params.UseSegmentation) {
 		Mat hsvImg(&arenas[ThreadIndex]);
 		bk_rgbImage.RGBToHSV(hsvImg);
-		GInfoProvider.UpdateHistograms(hsvImg, bk_bounds);
-		GInfoProvider.SegmentRegion(hsvImg, bk_positions, bk_scales);
+		GInfoProvider.UpdateHistograms(hsvImg, bk_bounds, bk_goodFlags);
+		GInfoProvider.SegmentRegion(hsvImg, bk_positions, bk_scales, bk_goodFlags);
 	}
 	// Update trackers.
 	std::vector<MatF> features;
 	const Vector2i featureSize(GInfoProvider.yf.Cols(), GInfoProvider.yf.Rows());
 	Mat orgPatch(&arenas[ThreadIndex]), patch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
+	    if(!bk_goodFlags[i]) continue;
 		// Extract features for tracker.
 		GFilter.GetSubWindow(bk_rgbImage, orgPatch, Vector2i((int)std::floor(bk_positions[i].x), (int)std::floor(bk_positions[i].y)),
 			(int)std::floor(bk_scales[i] * GInfoProvider.templateSize.x),
@@ -913,6 +1047,7 @@ void Processor::BackgroundUpdateRGB() {
 		MatF scaleFeature(&arenas[ThreadIndex]);
 		if(params.UseFastScale) {
             for (int i = 0; i < targetCount; ++i) {
+                if(!bk_goodFlags[i]) continue;
                 GInfoProvider.GetScaleFeatures(bk_rgbImage, scaleFeature, bk_positions[i],
                                                GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
                                                GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
@@ -920,6 +1055,7 @@ void Processor::BackgroundUpdateRGB() {
             }
 		} else {
             for (int i = 0; i < targetCount; ++i) {
+                if(!bk_goodFlags[i]) continue;
                 GInfoProvider.GetScaleFeatures(bk_rgbImage, scaleFeature, bk_positions[i],
                                                GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
                                                GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize);
@@ -939,8 +1075,8 @@ void Processor::BackgroundUpdateDepth() {
 			bk_normalImage.ToMat(img, 2, 255.0f);
 		else
 			bk_depthImage.ToMat(img, 1, 255.0f);
-		GInfoProvider.UpdateHistograms(img, bk_bounds);
-		GInfoProvider.SegmentRegion(img, bk_positions, bk_scales);
+		GInfoProvider.UpdateHistograms(img, bk_bounds, bk_goodFlags);
+		GInfoProvider.SegmentRegion(img, bk_positions, bk_scales, bk_goodFlags);
 	}
 	// Update trackers.
 	std::vector<MatF> features;
@@ -948,6 +1084,7 @@ void Processor::BackgroundUpdateDepth() {
 	MatF orgDepthPatch(&arenas[ThreadIndex]), depthPatch(&arenas[ThreadIndex]);
 	MatF orgNormalPatch(&arenas[ThreadIndex]), normalPatch(&arenas[ThreadIndex]);
 	for (int i = 0; i < targetCount; ++i) {
+	    if(!bk_goodFlags[i]) continue;
 		// Extract features for tracker.
 		GFilter.GetSubWindow(bk_depthImage, orgDepthPatch, Vector2i((int)std::floor(bk_positions[i].x), (int)std::floor(bk_positions[i].y)),
 			(int)std::floor(bk_scales[i] * GInfoProvider.templateSize.x),
@@ -973,6 +1110,7 @@ void Processor::BackgroundUpdateDepth() {
 		MatF scaleFeature(&arenas[ThreadIndex]);
 		if(params.UseFastScale) {
             for (int i = 0; i < targetCount; ++i) {
+                if(!bk_goodFlags[i]) continue;
                 GInfoProvider.GetScaleFeatures(bk_depthImage, bk_normalImage, scaleFeature, bk_positions[i],
                                                GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
                                                GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);
@@ -980,6 +1118,7 @@ void Processor::BackgroundUpdateDepth() {
             }
 		} else {
             for (int i = 0; i < targetCount; ++i) {
+                if(!bk_goodFlags[i]) continue;
                 GInfoProvider.GetScaleFeatures(bk_depthImage, bk_normalImage, scaleFeature, bk_positions[i],
                                                GInfoProvider.orgTargetSizes[i], bk_scales[i], GInfoProvider.scaleFactors,
                                                GInfoProvider.scaleWindow, GInfoProvider.scaleModelSize, params.UseNormalForDSST);

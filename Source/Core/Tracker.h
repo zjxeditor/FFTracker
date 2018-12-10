@@ -26,11 +26,11 @@ public:
 	void SetReinitialize() { initialized = false; }
 
 	// Initialize this tracker with extracted features, ideal response and spatial filter mask.
-	void Initialize(const std::vector<MatF> &feats, const MatCF &yf, const MatF &filterMask);
+	void Initialize(const std::vector<MatF> &feats, const MatCF &yf, const MatF &filterMask, float orgArea);
 
 	// Get the new position according to previous position.
 	void GetPosition(const std::vector<MatF> &feats, float currentScale, int cellSize, float rescaleRatio,
-		const Vector2f &currentPos, const Vector2i &moveSize, Vector2f &newPos) const;
+		const Vector2f &currentPos, const Vector2i &moveSize, Vector2f &newPos, float &score) const;
 
 	// Update the tracker model.
 	void Update(const std::vector<MatF> &feats, const MatCF &yf, const MatF &filterMask);
@@ -59,6 +59,12 @@ private:
 	// Calculate response based on all the filters and channels weights. Feats are extracted at previous location and scale.
 	void CalculateResponse(const std::vector<MatF> &feats, const std::vector<MatCF> &filter, MatF &response) const;
 
+	// Calculate the response score.
+	float CalculateScore(const MatF &response, const Vector2i &pos, float maxResp) const;
+
+	// Find sub peak.
+	void FindSubPeak(const MatF &response, const Vector2i &peakPos, Vector2i &subPos, float &subValue) const;
+
 	// Reset all arenas.
 	void ResetArenas(bool background = false) const;
 
@@ -79,6 +85,10 @@ private:
 	std::vector<MatCF> bk_filters;
 	std::vector<float> bk_filterWeights;
 	bool backgroundUpdateFlag;
+
+	// Target area
+	float targetArea;
+	float k;
 };
 
 }	// namespace CSRT

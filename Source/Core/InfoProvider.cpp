@@ -452,6 +452,24 @@ void InfoProvider::ConfigureTargets(
         cellSize += Clamp((int)std::ceil(orgTargetSizes[i].x * orgTargetSizes[i].y / 400.0f), 1, 4);
     cellSize = (int)std::round((float)cellSize / targetCount);
 	//cellSize = 4;
+
+    kalman2Ds.clear();
+	kalman2Ds.resize(targetCount);
+	float initialState[4];
+	for(int i = 0; i < targetCount; ++i) {
+        initialState[0] = currentPositions[i].x;
+        initialState[1] = currentPositions[i].y;
+        initialState[2] = 0.0f;
+        initialState[3] = 0.0f;
+        kalman2Ds[i].Initialize(&initialState[0]);
+	}
+
+	posScores.clear();
+	posScores.resize(targetCount, 0.0f);
+    posMeanScores.clear();
+    posMeanScores.resize(targetCount, 0.0f);
+    posScoreHistory.clear();
+	posScoreHistory.resize(targetCount);
 }
 
 void InfoProvider::ConfigureTracker(
@@ -496,15 +514,7 @@ void InfoProvider::ConfigureTracker(
     if(((rescaledTemplateSize.y / cellSize) & 1) == 0) {
         rescaledTemplateSize.y = (rescaledTemplateSize.y / cellSize + 1) * cellSize;
     }
-
-//    rescaledTemplateSize.x = referTemplateSize;
-//    rescaledTemplateSize.y = referTemplateSize;
-//    Vector2i tempSize;
-//    for (int i = 0; i < targetCount; ++i)
-//        tempSize += orgTargetSizes[i];
-//    tempSize /= targetCount;
-//    templateSize.x = templateSize.y = (int)((tempSize.x + tempSize.y) / 2 + localPadding * sqrt(tempSize.x * tempSize.y));
-//    rescaleRatio = (float)referTemplateSize / templateSize.x;
+    rescaleRatio = sqrt((float)(rescaledTemplateSize.x * rescaledTemplateSize.y) / (templateSize.x * templateSize.y));
 
 	// Get standard gaussian response.
 	GFilter.GaussianShapedLabels(yf, gaussianSigma, rescaledTemplateSize.x / cellSize, rescaledTemplateSize.y / cellSize);
@@ -833,20 +843,45 @@ void InfoProvider::ExtractHistograms(
 
 void InfoProvider::UpdateHistograms(
 	const Mat& image,
-	const std::vector<Bounds2f> &bbs) {
+	const std::vector<Bounds2f> &bbs,
+    bool *goodFlags) {
 	// Create temporary histograms.
 	int dim = histFores[0].Dim();
 	int bin = histFores[0].Bins();
-	std::vector<Histogram> hfs(targetCount, Histogram(dim, bin, &GInfoArenas[ThreadIndex]));
-	std::vector<Histogram> hbs(targetCount, Histogram(dim, bin, &GInfoArenas[ThreadIndex]));
-	ExtractHistograms(image, bbs, hfs, hbs);
+
+	int goodCount = 0;
+	std::vector<int> goodIndex;
+	std::vector<Bounds2f> extbbs;
+    goodIndex.reserve(targetCount);
+	extbbs.reserve(targetCount);
+	if(goodFlags != nullptr) {
+        for(int i = 0; i < targetCount; ++i) {
+            if(goodFlags[i]) {
+                ++goodCount;
+                goodIndex.push_back(i);
+                extbbs.push_back(bbs[i]);
+            }
+        }
+	} else {
+	    goodCount = targetCount;
+        goodIndex.resize(targetCount);
+        for(int i = 0; i < targetCount; ++i) {
+            goodIndex[i] = i;
+        }
+        extbbs = bbs;
+	}
+	if(goodCount <= 0) return;
+
+	std::vector<Histogram> hfs(goodCount, Histogram(dim, bin, &GInfoArenas[ThreadIndex]));
+	std::vector<Histogram> hbs(goodCount, Histogram(dim, bin, &GInfoArenas[ThreadIndex]));
+	ExtractHistograms(image, extbbs, hfs, hbs);
 
 	int len = histFores[0].Size();
 	ParallelFor([&](int64_t index) {
 		const float *pnewhf = hfs[index].Data();
 		const float *pnewhb = hbs[index].Data();
-		float *phf = histFores[index].Data();
-		float *phb = histBacks[index].Data();
+		float *phf = histFores[goodIndex[index]].Data();
+		float *phb = histBacks[goodIndex[index]].Data();
 		// Update using histogram learning rate.
 		for (int i = 0; i < len; ++i) {
 			*phf = Lerp(histLearnRate, *phf, *pnewhf);
@@ -854,7 +889,7 @@ void InfoProvider::UpdateHistograms(
 			++phf; ++pnewhf;
 			++phb; ++pnewhb;
 		}
-	}, targetCount, 2);
+	}, goodCount, 2);
 
 	ResetArenas();
 }
@@ -862,13 +897,16 @@ void InfoProvider::UpdateHistograms(
 void InfoProvider::SegmentRegion(
 	const Mat &image,
 	const std::vector<Vector2f> &objPositions,
-	const std::vector<float> &objScales) {
+	const std::vector<float> &objScales,
+    bool *goodFlags) {
 	if (objPositions.size() != targetCount || objScales.size() != targetCount) {
 		Critical("InfoProvider::SegmentRegion: invalid input parameters.");
 		return;
 	}
 
 	for (int index = 0; index < targetCount; ++index) {
+	    if((goodFlags != nullptr) && (!goodFlags[index])) continue;
+
 		// Calculate posterior of foreground and background.
 		Vector2i scaledTemp((int)std::floor(templateSize.x * objScales[index]),
 		                    (int)std::floor(templateSize.y * objScales[index]));
@@ -911,6 +949,7 @@ void InfoProvider::SegmentRegion(
 	int cols = yf.Cols();
 	std::vector<MatF> resizedFilterMasks(targetCount, &GInfoArenas[ThreadIndex]);
 	ParallelFor([&](int64_t index) {
+        if((goodFlags != nullptr) && (!goodFlags[index])) return;
 		filterMasks[index].Resize(resizedFilterMasks[index], rows, cols, ResizeMode::Nearest);
 		if (CheckMaskArea(resizedFilterMasks[index], defaultMaskAreas[index]))
 		    GFilter.Dilate2D(resizedFilterMasks[index], erodeKernel, filterMasks[index], BorderType::Zero);

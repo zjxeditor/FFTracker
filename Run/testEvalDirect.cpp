@@ -50,8 +50,9 @@ public:
 			return;
 		}
 
-		std::ofstream fout("result0.txt");
-		//std::ofstream fscore("score.txt");
+		std::ofstream fout("result.txt");
+		std::ofstream fscale("scale.txt");
+		std::ofstream fscore("score.txt");
 
 		int len = (int)frames.size();
 		float totalOverlap = 0.0f;
@@ -72,7 +73,8 @@ public:
 
 		bbgt = bbgt / imageScale;
 		fout << bbgt.pMin.x << "\t" << bbgt.pMin.y << "\t" << (bbgt.pMax.x - bbgt.pMin.x) << "\t" << (bbgt.pMax.y - bbgt.pMin.y) << std::endl;
-		//fscore << "10000" << std::endl;
+        fscale << GInfoProvider.GetCurrentScale(0) << std::endl;
+        fscore << 10000 << std::endl;
 
 		int percent = 0, a = 0, b = 0;
 		std::cout << "%" << a << b;
@@ -99,7 +101,8 @@ public:
 			if (overlap < overlapThreshold && useReinit) {
 				for (int k = 0; k < interval; ++k) {
 					fout << "-1\t-1\t-1\t-1" << std::endl;
-					//fscore << std::to_string(-score) << std::endl;
+                    fscale << -1 << std::endl;
+                    fscore << -1 << std::endl;
 				}
 
 				i += interval;
@@ -115,14 +118,16 @@ public:
 
 					bbgt = bbgt / imageScale;
 					fout << bbgt.pMin.x << "\t" << bbgt.pMin.y << "\t" << (bbgt.pMax.x - bbgt.pMin.x) << "\t" << (bbgt.pMax.y - bbgt.pMin.y) << std::endl;
-					//fscore << "10000" << std::endl;
+                    fscale << GInfoProvider.GetCurrentScale(0) << std::endl;
+                    fscore << 10000 << std::endl;
 				}
 				continue;
 			}
 
 			bb = bb / imageScale;
 			fout << bb.pMin.x << "\t" << bb.pMin.y << "\t" << (bb.pMax.x - bb.pMin.x) << "\t" << (bb.pMax.y - bb.pMin.y) << std::endl;
-			//fscore << std::to_string(score) << std::endl;
+            fscale << GInfoProvider.GetCurrentScale(0) << std::endl;
+            fscore << GInfoProvider.GetScorePos(0) << std::endl;
 
 			++trackedFrames;
 			totalOverlap += overlap;
@@ -134,7 +139,7 @@ public:
 		robustness = 1.0f / (failedFrames + 1.0f);
 
 		fout.close();
-		//fscore.close();
+		fscale.close();
 	}
 
 	inline int TrackedFrames() const { return trackedFrames; }
@@ -212,6 +217,7 @@ int main() {
 	params.UseScale = true;
 	params.UseSmoother = false;
 	params.UseFastScale = false;
+	params.FailThreshold = 0.08f;
 
 	if (produceVideo) {
 		std::string sequenceName = "ants";

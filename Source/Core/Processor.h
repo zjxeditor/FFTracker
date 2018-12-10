@@ -84,6 +84,7 @@ struct TrackerParams {
 	bool UseScale;          // Whether use DSST to perform scale estimation.
 	bool UseSmoother;       // Whether use smoother to filter the tracker outputs.
 	bool UseFastScale;		// Whether use fast dsst method to estimate scale.
+	float FailThreshold;    // [0, 1] value. Below this threshold will be considered as track failure.
 };
 
 enum class TrackMode {
@@ -116,8 +117,8 @@ private:
 	void ResetArenas(bool background = false) const;
 
 	// Background update logic.
-	void StartBackgroundUpdate(const Mat &rgbImage);
-	void StartBackgroundUpdate(const MatF &depthImage, const MatF &normalImage);
+	void StartBackgroundUpdate(const Mat &rgbImage, bool *goodFlags);
+	void StartBackgroundUpdate(const MatF &depthImage, const MatF &normalImage, bool *goodFlags);
 	void FetchUpdateResult();
 	void BackgroundUpdateRGB();
 	void BackgroundUpdateDepth();
@@ -140,6 +141,7 @@ private:
 	std::vector<Bounds2f> bk_bounds;
 	bool backgroundUpdateFlag;
 	int updateCounter;
+    bool *bk_goodFlags;
 };
 
 }	// namespace CSRT

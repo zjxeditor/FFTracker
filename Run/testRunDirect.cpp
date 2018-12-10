@@ -1,9 +1,11 @@
 // Real time tracker test.
 
 #include "../Source/Core/Processor.h"
+#include "../Source/Core/InfoProvider.h"
 #include "../Source/Camera/Camera.h"
 #include <opencv2/opencv.hpp>
 #include <fstream>
+#include <iostream>
 #include <memory>
 
 using namespace CSRT;
@@ -12,8 +14,8 @@ int main() {
 	StartSystem();
 
 	float scale = 0.8f;
-	int radius = 60;
-	int targetCount = 2;
+	int radius = 40;
+	int targetCount = 1;
 
 	TrackerParams params;
 	//params.UseHOG = true;
@@ -83,9 +85,10 @@ int main() {
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 1;
-	params.UseScale = false;
+	params.UseScale = true;
 	params.UseSmoother = true;
 	params.UseFastScale = false;
+	params.FailThreshold = 0.08f;
 
 	// Configure camera
 	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
@@ -151,6 +154,7 @@ int main() {
 		} else if (started) {
 			std::vector<Bounds2f> outputbbs;
 			pTracker->Update(postFrame, outputbbs);
+			std::cout << GInfoProvider.GetScorePos(0) <<std::endl;
 			for (int i = 0; i < targetCount; ++i) {
 				int centerx = (int)std::floor((outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2);
 				int centery = (int)std::floor((outputbbs[i].pMin.y + outputbbs[i].pMax.y) / 2);

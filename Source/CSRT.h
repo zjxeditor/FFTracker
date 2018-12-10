@@ -33,6 +33,8 @@
 #include <chrono>
 #include <complex>
 #include <cstring>
+#include <deque>
+#include <array>
 
 #if defined(_MSC_VER)
 #include <float.h>
