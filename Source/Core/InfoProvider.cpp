@@ -507,7 +507,7 @@ void InfoProvider::ConfigureTracker(
     if (rescaleRatio > 1.0f) rescaleRatio = 1.0f;
     rescaledTemplateSize.x = (int)std::floor(templateSize.x * rescaleRatio);
     rescaledTemplateSize.y = (int)std::floor(templateSize.y * rescaleRatio);
-    //rescaleRatio = sqrt((float)(rescaledTemplateSize.x * rescaledTemplateSize.y) / (templateSize.x * templateSize.y));
+    rescaleRatio = sqrt((float)(rescaledTemplateSize.x * rescaledTemplateSize.y) / (templateSize.x * templateSize.y));
 
 	// Get standard gaussian response.
 	GFilter.GaussianShapedLabels(yf, gaussianSigma, rescaledTemplateSize.x / cellSize, rescaledTemplateSize.y / cellSize);
