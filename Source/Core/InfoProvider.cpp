@@ -507,13 +507,6 @@ void InfoProvider::ConfigureTracker(
     if (rescaleRatio > 1.0f) rescaleRatio = 1.0f;
     rescaledTemplateSize.x = (int)std::floor(templateSize.x * rescaleRatio);
     rescaledTemplateSize.y = (int)std::floor(templateSize.y * rescaleRatio);
-    // Ensure odd value.
-    if(((rescaledTemplateSize.x / cellSize) & 1) == 0) {
-        rescaledTemplateSize.x = (rescaledTemplateSize.x / cellSize + 1) * cellSize;
-    }
-    if(((rescaledTemplateSize.y / cellSize) & 1) == 0) {
-        rescaledTemplateSize.y = (rescaledTemplateSize.y / cellSize + 1) * cellSize;
-    }
     rescaleRatio = sqrt((float)(rescaledTemplateSize.x * rescaledTemplateSize.y) / (templateSize.x * templateSize.y));
 
 	// Get standard gaussian response.
