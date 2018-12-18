@@ -11,6 +11,9 @@ using namespace CSRT;
 int main(int argc, char* argv[]) {
     StartSystem();
 
+    std::vector<std::string> argues;
+    for(int i = 1; i < argc; ++i) argues.push_back(argv[i]);
+
     TrackerParams params;
     params.UseHOG = true;
     params.UseCN = true;
@@ -27,10 +30,11 @@ int main(int argc, char* argv[]) {
     params.UseNormalForDSST = true;
     params.UseChannelWeights = true;
     params.UseSegmentation = true;
-    params.AdmmIterations = 4;
+    params.AdmmIterations = 3;
     params.Padding = 3.0f;
     params.TemplateSize = 200;
-    params.GaussianSigma = 1.0f;
+    if(argues.size() > 2) params.TemplateSize = std::stof(argues[2]);
+    params.GaussianSigma = 1.5f;
     params.WindowFunc = WindowType::Hann;
     params.ChebAttenuation = 45.0f;
     params.KaiserAlpha = 3.75f;
@@ -39,6 +43,7 @@ int main(int argc, char* argv[]) {
     params.HistLearnRate = 0.04f;
     params.ScaleLearnRate = 0.025f;
     params.BackgroundRatio = 2.0f;
+    if(argues.size() > 1) params.BackgroundRatio = std::stof(argues[1]);
     params.HistogramBins = 16;
     params.PostRegularCount = 16;
     params.MaxSegmentArea = 1024.0f;
@@ -50,6 +55,8 @@ int main(int argc, char* argv[]) {
     params.UseScale = true;
     params.UseSmoother = false;
     params.UseFastScale = false;
+    params.FailThreshold = 0.08f;
+    if(argues.size() > 0) params.FailThreshold = std::stof(argues[0]);
 
     VOT vot;
     std::vector<Bounds2f> bbs(1, Bounds2f());
