@@ -788,8 +788,8 @@ void InfoProvider::GetLocationPrior(
 	float *pdata = prior.Data();
 	ParallelFor([&](int64_t index) {
 		pdata[index] /= maxValue;
-		if (pdata[index] < 0.5f) pdata[index] = 0.5f;
-		else if (pdata[index] > 0.9f) pdata[index] = 0.9f;
+//		if (pdata[index] < 0.5f) pdata[index] = 0.5f;
+//		else if (pdata[index] > 0.9f) pdata[index] = 0.9f;
 	}, prior.Size(), 2048);
 }
 
