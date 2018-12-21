@@ -532,6 +532,8 @@ void InfoProvider::ConfigureTracker(
 	// Create trackers.
 	trackers.clear();
 	trackers.resize(targetCount, Tracker(channelWeights, pca, iteration, learnRateOfChannel, learnRateOfFilter));
+	std::vector<float> learnRates = {0.02f, 0.08f, 0.16f};
+	for(auto &tracker : trackers) tracker.SetLearningRates(learnRates, learnRates);
 }
 
 void InfoProvider::ConfigureDSST(
