@@ -24,7 +24,7 @@ int main() {
 	params.UseDepthGray = true;
 	params.UseDepthNormal = true;
 	params.UseDepthHON = true;
-	params.UseDepthNormalHOG = true;
+	params.UseDepthNormalHOG = false;
 	params.NumHOGChannelsUsed = 18;
 	params.PCACount = 0;
 	params.UseNormalForSegment = true;
@@ -51,7 +51,7 @@ int main() {
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 0;
-	params.UseScale = false;
+	params.UseScale = true;
 	params.UseSmoother = false;
 	params.UseFastScale = false;
 

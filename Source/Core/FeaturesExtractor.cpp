@@ -709,6 +709,7 @@ void FeaturesExtractor::ComputeDepthHON(const MatF& normal, std::vector<MatF>& f
 		for (int x = 0; x < visibleSize.x; ++x) {
 			// Compute hist index.
 			histIndex = (int)(s[0] / deltaPhi) * thetaBinNum + (int)(s[1] / deltaTheta);
+			histIndex = Clamp(histIndex, 0, dimHON - 1);
 			s += 2;
 			// Add to 4 histograms around pixel using bilinear interpolation
 			float yp = (y + 0.5f) / binSize - 0.5f;

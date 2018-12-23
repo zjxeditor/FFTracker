@@ -13,8 +13,8 @@ using namespace CSRT;
 int main() {
 	StartSystem();
 
-	float scale = 0.8f;
-	int radius = 40;
+	float scale = 1.0f;
+	int radius = 70;
 	int targetCount = 2;
 
 	TrackerParams params;
@@ -65,10 +65,10 @@ int main() {
 	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
-	params.AdmmIterations = 4;
+	params.AdmmIterations = 3;
 	params.Padding = 3.0f;
 	params.TemplateSize = 200;
-	params.GaussianSigma = 1.0f;
+	params.GaussianSigma = 1.5f;
 	params.WindowFunc = WindowType::Hann;
 	params.ChebAttenuation = 45.0f;
 	params.KaiserAlpha = 3.75f;
@@ -86,7 +86,7 @@ int main() {
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 1;
 	params.UseScale = true;
-	params.UseSmoother = true;
+	params.UseSmoother = false;
 	params.UseFastScale = false;
 	params.FailThreshold = 0.08f;
 
