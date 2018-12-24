@@ -51,7 +51,7 @@ int main() {
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 0;
-	params.UseScale = true;
+	params.UseScale = false;
 	params.UseSmoother = false;
 	params.UseFastScale = false;
 
@@ -114,7 +114,7 @@ int main() {
 		normalFrame.ToMat(normalShowFrame, 3, 255.0f / 2.0f, 255.0f / 2.0f);
 		memcpy(cvImage.data, normalShowFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
 
-		if (!started && Duration(startTime, TimeNow()) > 5e6) {
+		if (!started && Duration(startTime, TimeNow()) > 6e6) {
 			started = true;
 			pTracker->Initialize(postDepthFrame, polarNormalFrame, initbbs);
 			for (int i = 0; i < targetCount; ++i) {

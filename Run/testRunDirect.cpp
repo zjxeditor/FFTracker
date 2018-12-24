@@ -84,8 +84,8 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 1;
-	params.UseScale = true;
+	params.UpdateInterval = 0;
+	params.UseScale = false;
 	params.UseSmoother = false;
 	params.UseFastScale = false;
 	params.FailThreshold = 0.08f;
@@ -101,6 +101,7 @@ int main() {
 	int colorHeight = camera->GetColorHeight();
 	int postWidth = colorWidth * scale;
 	int postHeight = colorHeight * scale;
+	Info(StringPrintf("img size: %d x %d", postWidth, postHeight));
 	Mat rawColorFrame(colorHeight, colorWidth, 4);
 	Mat colorFrame(colorHeight, colorWidth, 3);
 	camera->SetColorData(rawColorFrame.Data());
@@ -129,6 +130,10 @@ int main() {
 		initbbs[i].pMax.y = centerY + radius;
 	}
 
+	int trackedFrames = 0;
+	float fps = 0.0f;
+	int64_t totalTime = 0;
+
 	// Main loop.
 	bool started = false;
 	TimePt startTime = TimeNow();
@@ -153,7 +158,11 @@ int main() {
 			}
 		} else if (started) {
 			std::vector<Bounds2f> outputbbs;
+			TimePt sTime = TimeNow();
 			pTracker->Update(postFrame, outputbbs);
+			int64_t frameTime = Duration(sTime, TimeNow());
+			++trackedFrames;
+			totalTime += frameTime;
 			//std::cout << GInfoProvider.GetScorePos(0) <<std::endl;
 			for (int i = 0; i < targetCount; ++i) {
 				int centerx = (int)std::floor((outputbbs[i].pMin.x + outputbbs[i].pMax.x) / 2);
@@ -173,6 +182,9 @@ int main() {
 		cv::flip(cvImage, cvImage, 1);
 		cv::imshow(WindowName, cvImage);
 	}
+
+	fps = trackedFrames / (totalTime * 1e-6f);
+	Info("fps: " + std::to_string(fps));
 
 	camera->Release();
 	pTracker.reset();

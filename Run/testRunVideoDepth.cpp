@@ -12,7 +12,7 @@ int main() {
 	StartSystem();
 
 	float scale = 1.0f;
-	int radius = 35;
+	int radius = 40;
 	int targetCount = 2;
 
 	TrackerParams params;
@@ -24,17 +24,17 @@ int main() {
 	params.UseDepthGray = true;
 	params.UseDepthNormal = true;
 	params.UseDepthHON = true;
-	params.UseDepthNormalHOG = true;
+	params.UseDepthNormalHOG = false;
 	params.NumHOGChannelsUsed = 18;
 	params.PCACount = 0;
 	params.UseNormalForSegment = true;
 	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
-	params.AdmmIterations = 4;
+	params.AdmmIterations = 3;
 	params.Padding = 3.0f;
 	params.TemplateSize = 200;
-	params.GaussianSigma = 1.0f;
+	params.GaussianSigma = 1.5f;
 	params.WindowFunc = WindowType::Hann;
 	params.ChebAttenuation = 45.0f;
 	params.KaiserAlpha = 3.75f;
@@ -50,9 +50,9 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 1;
+	params.UpdateInterval = 0;
 	params.UseScale = false;
-	params.UseSmoother = true;
+	params.UseSmoother = false;
 	params.UseFastScale = false;
 
 	// Configure camera
@@ -122,7 +122,7 @@ int main() {
 		normalFrame.ToMat(normalShowFrame, 3, 255.0f / 2.0f, 255.0f / 2.0f);
 		memcpy(cvImage.data, normalShowFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
 
-		if (!started && Duration(startTime, TimeNow()) > 5e6) {
+		if (!started && Duration(startTime, TimeNow()) > 6e6) {
 			started = true;
 			pTracker->Initialize(postDepthFrame, polarNormalFrame, initbbs);
 			for (int i = 0; i < targetCount; ++i) {

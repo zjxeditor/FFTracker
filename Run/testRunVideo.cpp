@@ -11,15 +11,15 @@ using namespace CSRT;
 int main() {
 	StartSystem();
 
-	float scale = 0.8f;
-	int radius = 60;
+	float scale = 1.0f;
+	int radius = 50;
 	int targetCount = 2;
 
 	TrackerParams params;
 	params.UseHOG = true;
 	params.UseCN = true;
 	params.UseGRAY = true;
-	params.UseRGB = true;
+	params.UseRGB = false;
 	params.UseDepthHOG = true;
 	params.UseDepthGray = true;
 	params.UseDepthNormal = true;
@@ -31,10 +31,10 @@ int main() {
 	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
-	params.AdmmIterations = 4;
+	params.AdmmIterations = 3;
 	params.Padding = 3.0f;
 	params.TemplateSize = 200;
-	params.GaussianSigma = 1.0f;
+	params.GaussianSigma = 1.5f;
 	params.WindowFunc = WindowType::Hann;
 	params.ChebAttenuation = 45.0f;
 	params.KaiserAlpha = 3.75f;
@@ -50,10 +50,11 @@ int main() {
 	params.ScaleSigma = 0.25f;
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
-	params.UpdateInterval = 1;
+	params.UpdateInterval = 0;
 	params.UseScale = false;
-	params.UseSmoother = true;
+	params.UseSmoother = false;
 	params.UseFastScale = false;
+	params.FailThreshold = 0.08f;
 
 	// Configure camera
 	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);
@@ -115,7 +116,7 @@ int main() {
 		colorFrame.Resize(postFrame, postHeight, postWidth);
 		memcpy(cvImage.data, postFrame.Data(), postWidth*postHeight * 3 * sizeof(uint8_t));
 
-		if (!started && Duration(startTime, TimeNow()) > 5e6) {
+		if (!started && Duration(startTime, TimeNow()) > 6e6) {
 			started = true;
 			pTracker->Initialize(postFrame, initbbs);
 			for (int i = 0; i < targetCount; ++i) {
