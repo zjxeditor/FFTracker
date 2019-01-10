@@ -94,7 +94,7 @@ inline int64_t Duration(TimePt start, TimePt end) { return std::chrono::duration
 extern std::shared_ptr<spdlog::logger> Logger;
 
 // Create logger.
-inline void CreateLogger(std::string filePath = "") {
+inline void CreateLogger(const std::string &filePath = "") {
 	try {
 		if (filePath.empty()) Logger = spdlog::stdout_color_mt("console");
 		else Logger = spdlog::basic_logger_mt("file", filePath);
@@ -132,13 +132,13 @@ inline void Critical(const std::string& message) {
 
 static constexpr float MaxFloat = std::numeric_limits<float>::max();
 static constexpr float Infinity = std::numeric_limits<float>::infinity();
-static constexpr float Pi = 3.14159265358979323846;
-static constexpr float InvPi = 0.31830988618379067154;
-static constexpr float Inv2Pi = 0.15915494309189533577;
-static constexpr float Inv4Pi = 0.07957747154594766788;
-static constexpr float PiOver2 = 1.57079632679489661923;
-static constexpr float PiOver4 = 0.78539816339744830961;
-static constexpr float Sqrt2 = 1.41421356237309504880;
+static constexpr float Pi = 3.14159265358979323846f;
+static constexpr float InvPi = 0.31830988618379067154f;
+static constexpr float Inv2Pi = 0.15915494309189533577f;
+static constexpr float Inv4Pi = 0.07957747154594766788f;
+static constexpr float PiOver2 = 1.57079632679489661923f;
+static constexpr float PiOver4 = 0.78539816339744830961f;
+static constexpr float Sqrt2 = 1.41421356237309504880f;
 
 //
 // Global Inline Functions
