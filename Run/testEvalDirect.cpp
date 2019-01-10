@@ -178,6 +178,7 @@ int main() {
 	float scale = 0.4f;
 	bool produceVideo = false;
 
+	float learnRates[3] = { 0.02f, 0.08f, 0.16f };
 	TrackerParams params;
 	params.UseHOG = true;
 	params.UseCN = true;
@@ -201,8 +202,9 @@ int main() {
 	params.WindowFunc = WindowType::Hann;
 	params.ChebAttenuation = 45.0f;
 	params.KaiserAlpha = 3.75f;
-	params.WeightsLearnRate = 0.02f;
-	params.FilterLearnRate = 0.02f;
+	params.WeightsLearnRates = &learnRates[0];
+	params.FilterLearnRates = &learnRates[0];
+	params.LearnRateNum = sizeof(learnRates) / sizeof(learnRates[0]);
 	params.HistLearnRate = 0.04f;
 	params.ScaleLearnRate = 0.025f;
 	params.BackgroundRatio = 2.0f;

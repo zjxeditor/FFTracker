@@ -64,7 +64,7 @@ public:
 	// Modules configuration. Must be configured in order.
 	void ConfigureTargets(int count, const Vector2i &moveRegion, const std::vector<Bounds2f> &bbs);
 	void ConfigureTracker(float localPadding, float referTemplateSize, float gaussianSigma,
-		bool channelWeights, int pca, int iteration, float learnRateOfChannel, float learnRateOfFilter,
+		bool channelWeights, int pca, int iteration, const std::vector<float> &channelRates, const std::vector<float> &filterRates,
 		WindowType windowFunc = WindowType::Hann, float chebAttenuation = 45.0f, float kaiserAlpha = 3.75f);
 	void ConfigureDSST(int numberOfScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea);
     void ConfigureFDSST(int numberOfInterpScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea);

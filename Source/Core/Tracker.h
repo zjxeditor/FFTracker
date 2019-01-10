@@ -116,7 +116,7 @@ namespace CSRT {
 class Tracker {
 public:
 	// Tracker Public Methods
-	Tracker(bool channelWeights, int pca, int iter, float learnRateOfChannel, float learnRateOfFilter);
+	Tracker(bool channelWeights, int pca, int iter, const std::vector<float> &channelRates, const std::vector<float> &filterRates);
 	~Tracker();
 
 	void SetLearningRates(const std::vector<float> &channelRates, const std::vector<float> &filterRates);

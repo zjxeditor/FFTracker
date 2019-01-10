@@ -208,7 +208,12 @@ void ConvertPolarNormalToNormal(const Vector2f* polarNormal, Vector3f* normal, i
     }, height, 32);
 }
 
+//
 // Default parameters.
+//
+
+float TrackerParams::DefaultLearnRates[3] = { 0.02f, 0.08f, 0.16f };
+
 TrackerParams::TrackerParams() {
 	UseHOG = true;
 	UseCN = true;
@@ -236,8 +241,9 @@ TrackerParams::TrackerParams() {
 	ChebAttenuation = 45.0f;
 	KaiserAlpha = 3.75f;
 
-	WeightsLearnRate = 0.02f;
-	FilterLearnRate = 0.02f;
+	WeightsLearnRates = &DefaultLearnRates[0];
+	FilterLearnRates = &DefaultLearnRates[0];
+	LearnRateNum = 3;
 	HistLearnRate = 0.04f;
 	ScaleLearnRate = 0.025f;
 
@@ -257,6 +263,10 @@ TrackerParams::TrackerParams() {
 	UseFastScale = false;
     FailThreshold = 0.08f;
 }
+
+//
+// Processor implementation
+//
 
 Processor::Processor(const TrackerParams& trackParams, int count, const Vector2i &moveSize, TrackMode mode) :
 	params(trackParams), targetCount(count), moveRegion(moveSize), trackMode(mode), featMask(0), initialized(false), 
@@ -341,9 +351,11 @@ void Processor::Initialize(const Mat& rgbImage, const std::vector<Bounds2f>& bbs
 
 	// Configure the InfoProvider.
 	GInfoProvider.ConfigureTargets(targetCount, moveRegion, bbs);
+	std::vector<float> channelRates(params.WeightsLearnRates, params.WeightsLearnRates + params.LearnRateNum);
+	std::vector<float> filterRates(params.FilterLearnRates, params.FilterLearnRates + params.LearnRateNum);
 	GInfoProvider.ConfigureTracker(params.Padding, params.TemplateSize, params.GaussianSigma,
-		params.UseChannelWeights, params.PCACount, params.AdmmIterations, params.WeightsLearnRate,
-		params.FilterLearnRate, params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
+		params.UseChannelWeights, params.PCACount, params.AdmmIterations, channelRates, filterRates,
+		params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
 	if (params.UseScale) {
 	    if(params.UseFastScale)
             GInfoProvider.ConfigureFDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);
@@ -448,9 +460,11 @@ void Processor::Initialize(const MatF& depthImage, const MatF& normalImage, cons
 
 	// Configure the InfoProvider.
 	GInfoProvider.ConfigureTargets(targetCount, moveRegion, bbs);
+	std::vector<float> channelRates(params.WeightsLearnRates, params.WeightsLearnRates + params.LearnRateNum);
+	std::vector<float> filterRates(params.FilterLearnRates, params.FilterLearnRates + params.LearnRateNum);
 	GInfoProvider.ConfigureTracker(params.Padding, params.TemplateSize, params.GaussianSigma,
-		params.UseChannelWeights, params.PCACount, params.AdmmIterations, params.WeightsLearnRate,
-		params.FilterLearnRate, params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
+		params.UseChannelWeights, params.PCACount, params.AdmmIterations, channelRates, filterRates,
+		params.WindowFunc, params.ChebAttenuation, params.KaiserAlpha);
 	if (params.UseScale) {
 	    if(params.UseFastScale)
             GInfoProvider.ConfigureFDSST(params.ScaleCount, params.ScaleStep, params.ScaleSigma, params.ScaleLearnRate, params.ScaleMaxArea);

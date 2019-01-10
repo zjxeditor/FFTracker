@@ -677,15 +677,10 @@ namespace CSRT {
 // Tracker Implementation
 //
 
-Tracker::Tracker(bool channelWeights, int pca, int iter, float learnRateOfChannel, float learnRateOfFilter) :
+Tracker::Tracker(bool channelWeights, int pca, int iter, const std::vector<float> &channelRates, const std::vector<float> &filterRates) :
 		initialized(false), useChannelWeights(channelWeights), pcaCount(pca), iterations(iter),
 		arenas(nullptr), backgroundUpdateFlag(false), targetArea(0.0f), k(0.0f) {
-	weightsLearnRates.push_back(learnRateOfChannel);
-	filterLearnRates.push_back(learnRateOfFilter);
-	filters.resize(1);
-	filterWeights.resize(1);
-	bk_filters.resize(1);
-	bk_filterWeights.resize(1);
+    SetLearningRates(channelRates, filterRates);
 }
 
 Tracker::~Tracker() {

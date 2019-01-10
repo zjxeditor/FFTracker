@@ -479,8 +479,8 @@ void InfoProvider::ConfigureTracker(
 	bool channelWeights,
 	int pca,
 	int iteration,
-	float learnRateOfChannel,
-	float learnRateOfFilter,
+    const std::vector<float> &channelRates,
+    const std::vector<float> &filterRates,
 	WindowType windowFunc,
 	float chebAttenuation,
 	float kaiserAlpha) {
@@ -488,6 +488,9 @@ void InfoProvider::ConfigureTracker(
 		Critical("InfoProvider::ConfigureTracker: invalid track configuration.");
 		return;
 	}
+    if(channelRates.size() <= 0 || channelRates.size() != filterRates.size()) {
+        Critical("InfoProvider::ConfigureTracker: invalid learning rates configuration.");
+    }
 
 	// Calculate template size
     templateSize.x = 0;
@@ -531,9 +534,7 @@ void InfoProvider::ConfigureTracker(
 
 	// Create trackers.
 	trackers.clear();
-	trackers.resize(targetCount, Tracker(channelWeights, pca, iteration, learnRateOfChannel, learnRateOfFilter));
-	std::vector<float> learnRates = {0.02f, 0.08f, 0.16f};
-	for(auto &tracker : trackers) tracker.SetLearningRates(learnRates, learnRates);
+	trackers.resize(targetCount, Tracker(channelWeights, pca, iteration, channelRates, filterRates));
 }
 
 void InfoProvider::ConfigureDSST(

@@ -127,7 +127,9 @@ void KalmanFilter::Correct(CSRT::MatF &res, const CSRT::MatF &measure) {
     res = statePost;
 }
 
+//
 // Kalman2D implementation.
+//
 
 void Kalman2D::Initialize(const float *initialState) {
     filter.Initialize(4, 2, 0);

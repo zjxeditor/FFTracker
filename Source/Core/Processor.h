@@ -49,42 +49,47 @@ struct TrackerParams {
 	bool UseDepthHON;
 	bool UseDepthNormalHOG;
 	int NumHOGChannelsUsed;
-	int PCACount;		// Feature PCA count.
+	int PCACount;				// Feature PCA count.
 
 	bool UseNormalForSegment;	// Use normal data for segmentation.
 	bool UseNormalForDSST;		// Use normal data for DSST.
-	bool UseChannelWeights;	// Use different weights for each channel.
-	bool UseSegmentation;	// Use segmentation for spatial constraint.
+	bool UseChannelWeights;		// Use different weights for each channel.
+	bool UseSegmentation;		// Use segmentation for spatial constraint.
 
-	int AdmmIterations;		// Iteration number for optimized filter solver.
-	float Padding;			// Padding used to calculate template size. Affect how much area to search.
-	float TemplateSize;		// Specify the target template size.
-	float GaussianSigma;	// Guassian lable sigma factor.
+	int AdmmIterations;			// Iteration number for optimized filter solver.
+	float Padding;				// Padding used to calculate template size. Affect how much area to search.
+	float TemplateSize;			// Specify the target template size.
+	float GaussianSigma;		// Guassian lable sigma factor.
 
-	WindowType WindowFunc;	// Filter window function type.
-	float ChebAttenuation;	// Attenuation when use Cheb window.
-	float KaiserAlpha;		// Alpha value when use Kaiser window.
+	WindowType WindowFunc;		// Filter window function type.
+	float ChebAttenuation;		// Attenuation when use Cheb window.
+	float KaiserAlpha;			// Alpha value when use Kaiser window.
 
-	float WeightsLearnRate;	// Filter weights learn rate.
-	float FilterLearnRate;	// Filter learn rate.
-	float HistLearnRate;	// Histogram model learn rate.
-	float ScaleLearnRate;	// DSST learn rate.
+	float *WeightsLearnRates;	// Filter weights learn rate.
+	float *FilterLearnRates;	// Filter learn rate.
+	int LearnRateNum;			// The number of weight learn rate and filter learn weight.
 
-	float BackgroundRatio;	// Background extend ratio.
-	int HistogramBins;		// Bins number for the hisogram extraction.
-	int PostRegularCount;	// Iteration count for post regularization count in segment process.
-	float MaxSegmentArea;	// Controls the max area used for segment probability computation.
+	float HistLearnRate;		// Histogram model learn rate.
+	float ScaleLearnRate;		// DSST learn rate.
 
-	int ScaleCount;			// Scale numbers for DSST.
-	float ScaleSigma;		// DSST scale sigma factor.
-	float ScaleMaxArea;		// Max model area for DSST.
-	float ScaleStep;		// Scale step for DSST.
+	float BackgroundRatio;		// Background extend ratio.
+	int HistogramBins;			// Bins number for the hisogram extraction.
+	int PostRegularCount;		// Iteration count for post regularization count in segment process.
+	float MaxSegmentArea;		// Controls the max area used for segment probability computation.
 
-	int UpdateInterval;		// Update frame interval. Set to 0 or negative to disable background update mode.
-	bool UseScale;          // Whether use DSST to perform scale estimation.
-	bool UseSmoother;       // Whether use smoother to filter the tracker outputs.
-	bool UseFastScale;		// Whether use fast dsst method to estimate scale.
-	float FailThreshold;    // [0, 1] value. Below this threshold will be considered as track failure.
+	int ScaleCount;				// Scale numbers for DSST.
+	float ScaleSigma;			// DSST scale sigma factor.
+	float ScaleMaxArea;			// Max model area for DSST.
+	float ScaleStep;			// Scale step for DSST.
+
+	int UpdateInterval;			// Update frame interval. Set to 0 or negative to disable background update mode.
+	bool UseScale;          	// Whether use DSST to perform scale estimation.
+	bool UseSmoother;       	// Whether use smoother to filter the tracker outputs.
+	bool UseFastScale;			// Whether use fast dsst method to estimate scale.
+	float FailThreshold;    	// [0, 1] value. Below this threshold will be considered as track failure.
+
+private:
+	static float DefaultLearnRates[3];
 };
 
 enum class TrackMode {
