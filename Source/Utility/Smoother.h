@@ -16,35 +16,6 @@
 namespace CSRT {
 
 //
-// A very simple Kalman filter. Note it is only support a single double data. You need verious
-// filters to process 3D position data for instance.
-//
-
-class SimpleKalmanFilter
-{
-public:
-    float Update(float measurement)
-    {
-        measurementUpdate();
-        float result = X + (measurement - X) * K;
-        X = result;
-        return result;
-    }
-
-private:
-    void measurementUpdate()
-    {
-        K = (P + Q) / (P + Q + R);
-        P = R * (P + Q) / (R + P + Q);
-    }
-
-private:
-    float Q = 0.000001f;
-    float R = 0.01f;	// test 0.0001
-    float P = 1.0f, X = 0.0f, K;
-};
-
-//
 // The following filter is a Holt Double Exponential Smoothing filter for filtering Joints
 // referenced to Microsoft.
 //

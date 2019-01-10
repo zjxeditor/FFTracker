@@ -59,7 +59,8 @@
 #endif
 
 // Measure the best fft in the initial frame.
-#define MEASURE_BEST_FFT
+// After experiments, turn on this feature will introduce some computation accuracy loss.
+//#define MEASURE_BEST_FFT
 
 // Pre-defined hog feature count. Optimize the hog computation method. Choose 18, 27, 31 or 32. 
 #define HOG_FEATURE_COUNT 18

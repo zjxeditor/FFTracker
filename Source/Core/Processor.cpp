@@ -557,10 +557,10 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
 	bbs.resize(targetCount);
 
 	// Predict
-    float state[4];
+    std::vector<std::vector<float>> states(targetCount, std::vector<float>(4));
     for(int i = 0; i < targetCount; ++i) {
-        GInfoProvider.kalman2Ds[i].Predict(&state[0]);
-        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.kalman2Ds[i].Predict(&states[i][0]);
+        GInfoProvider.currentPositions[i] = Vector2f(states[i][0], states[i][1]);
         GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
         GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
     }
@@ -652,15 +652,9 @@ void Processor::Update(const Mat& rgbImage, std::vector<Bounds2f>& bbs) {
         if(goodPosFlags[i]) {
             measure[0] = GInfoProvider.currentPositions[i].x;
             measure[1] = GInfoProvider.currentPositions[i].y;
-        } else {
-            GInfoProvider.kalman2Ds[i].Predict(&state[0]);
-            measure[0] = state[0];
-            measure[1] = state[1];
-            measure[0] = Clamp(measure[0], 0.0f, GInfoProvider.moveSize.x - 1.0f);
-            measure[1] = Clamp(measure[1], 0.0f, GInfoProvider.moveSize.y - 1.0f);
+            GInfoProvider.kalman2Ds[i].Correct(&measure[0], &states[i][0]);
         }
-        GInfoProvider.kalman2Ds[i].Correct(&measure[0], &state[0]);
-        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.currentPositions[i] = Vector2f(states[i][0], states[i][1]);
         GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
         GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
     }
@@ -767,10 +761,10 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
 	bbs.resize(targetCount);
 
     // Predict
-    float state[4];
+    std::vector<std::vector<float>> states(targetCount, std::vector<float>(4));
     for(int i = 0; i < targetCount; ++i) {
-        GInfoProvider.kalman2Ds[i].Predict(&state[0]);
-        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.kalman2Ds[i].Predict(&states[i][0]);
+        GInfoProvider.currentPositions[i] = Vector2f(states[i][0], states[i][1]);
         GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
         GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
     }
@@ -869,15 +863,9 @@ void Processor::Update(const MatF& depthImage, const MatF& normalImage, std::vec
         if(goodPosFlags[i]) {
             measure[0] = GInfoProvider.currentPositions[i].x;
             measure[1] = GInfoProvider.currentPositions[i].y;
-        } else {
-            GInfoProvider.kalman2Ds[i].Predict(&state[0]);
-            measure[0] = state[0];
-            measure[1] = state[1];
-            measure[0] = Clamp(measure[0], 0.0f, GInfoProvider.moveSize.x - 1.0f);
-            measure[1] = Clamp(measure[1], 0.0f, GInfoProvider.moveSize.y - 1.0f);
+            GInfoProvider.kalman2Ds[i].Correct(&measure[0], &states[i][0]);
         }
-        GInfoProvider.kalman2Ds[i].Correct(&measure[0], &state[0]);
-        GInfoProvider.currentPositions[i] = Vector2f(state[0], state[1]);
+        GInfoProvider.currentPositions[i] = Vector2f(states[i][0], states[i][1]);
         GInfoProvider.currentPositions[i].x = Clamp(GInfoProvider.currentPositions[i].x, 0.0f, GInfoProvider.moveSize.x - 1.0f);
         GInfoProvider.currentPositions[i].y = Clamp(GInfoProvider.currentPositions[i].y, 0.0f, GInfoProvider.moveSize.y - 1.0f);
     }

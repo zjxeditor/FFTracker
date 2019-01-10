@@ -481,6 +481,11 @@ Mat::Mat(Mat &&m) noexcept
 }
 
 Mat &Mat::operator=(const Mat &m) {
+	if(rows == m.rows && cols == m.cols && channels == m.channels) {
+		memcpy(data, m.data, size);
+		return *this;
+	}
+
 	rows = m.rows;
 	cols = m.cols;
 	channels = m.channels;
@@ -1166,6 +1171,11 @@ MatF::MatF(MatF &&m) noexcept
 }
 
 MatF &MatF::operator=(const MatF &m) {
+	if(rows == m.rows && cols == m.cols) {
+		memcpy(data, m.data, size * sizeof(float));
+		return *this;
+	}
+
 	rows = m.rows;
 	cols = m.cols;
 	size = m.size;
@@ -1793,6 +1803,11 @@ MatCF::MatCF(MatCF &&m) noexcept
 }
 
 MatCF &MatCF::operator=(const MatCF &m) {
+	if(rows == m.rows && cols == m.cols) {
+		memcpy(data, m.data, size * sizeof(ComplexF));
+		return *this;
+	}
+
 	rows = m.rows;
 	cols = m.cols;
 	size = m.size;
