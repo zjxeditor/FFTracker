@@ -12,7 +12,7 @@ int main() {
 	StartSystem();
 
 	float scale = 1.0f;
-	int radius = 50;
+	int radius = 68;
 	int targetCount = 2;
 
 	float learnRates[3] = { 0.02f, 0.08f, 0.16f };

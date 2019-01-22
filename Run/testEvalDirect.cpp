@@ -1,6 +1,8 @@
 #include "../Source/Core/Processor.h"
 #include <fstream>
 #include <dirent.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/types.hpp>
 
 using namespace CSRT;
 
@@ -36,6 +38,52 @@ void GetImageFile(const std::string& foldername, std::vector<std::string> &files
     }
     closedir(dirp);
     std::sort(files.begin(), files.end());
+}
+
+void DrawDashRect(cv::Mat img, int linelength, int dashlength, cv::Rect blob, cv::Scalar color, int thickness) {
+	int w = cvRound(blob.width);
+	int h = cvRound(blob.height);
+	int tl_x = cvRound(blob.x);
+	int tl_y = cvRound(blob.y);
+
+	int totallength = dashlength + linelength;
+	int nCountX = w / totallength;
+	int nCountY = h / totallength;
+
+	cv::Point start, end;
+	start.y = tl_y;
+	start.x = tl_x;
+	end.x = tl_x;
+	end.y = tl_y;
+
+	for (int i = 0; i < nCountX; i++) {
+		end.x = tl_x + (i + 1) * totallength - dashlength;
+		end.y = tl_y;
+		start.x = tl_x + i * totallength;
+		start.y = tl_y;
+		cv::line(img, start, end, color, thickness);
+	}
+	for (int i = 0; i < nCountX; i++) {
+		start.x = tl_x + i * totallength;
+		start.y = tl_y + h;
+		end.x = tl_x + (i + 1) * totallength - dashlength;
+		end.y = tl_y + h;
+		cv::line(img, start, end, color, thickness);
+	}
+	for (int i = 0; i < nCountY; i++) {
+		start.x = tl_x;
+		start.y = tl_y + i * totallength;
+		end.y = tl_y + (i + 1) * totallength - dashlength;
+		end.x = tl_x;
+		cv::line(img, start, end, color, thickness);
+	}
+	for (int i = 0; i < nCountY; i++) {
+		start.x = tl_x + w;
+		start.y = tl_y + i * totallength;
+		end.y = tl_y + (i + 1) * totallength - dashlength;
+		end.x = tl_x + w;
+		cv::line(img, start, end, color, thickness);
+	}
 }
 
 class TrackerWrapper {
@@ -99,10 +147,11 @@ public:
 
 			// Track failed.
 			if (overlap < overlapThreshold && useReinit) {
-				for (int k = 0; k < interval; ++k) {
-					fout << "-1\t-1\t-1\t-1" << std::endl;
-                    fscale << -1 << std::endl;
-                    fscore << -1 << std::endl;
+                bb = bb / imageScale;
+			    for (int k = 0; k < interval; ++k) {
+                    fout << -bb.pMin.x << "\t" << -bb.pMin.y << "\t" << -(bb.pMax.x - bb.pMin.x) << "\t" << -(bb.pMax.y - bb.pMin.y) << std::endl;
+                    fscale << -GInfoProvider.GetCurrentScale(0) << std::endl;
+                    fscore << -GInfoProvider.GetScorePos(0) << std::endl;
 				}
 
 				i += interval;
@@ -167,16 +216,17 @@ private:
 
 static const cv::Scalar GTColor = cv::Scalar(0, 255, 0);
 static const cv::Scalar TrackColor = cv::Scalar(0, 0, 255);
+static const cv::Scalar ErrorColor = cv::Scalar(255, 0, 0);
 
 int main() {
 	StartSystem();
 
 	std::string basePath = "/Users/jxzhang/Learn/handtrack/HandData";
-	std::vector<std::string> sequenceNames = { "zjx0_a0b0c0", "zjx0_a0b0c1", "zjx0_a0b1c0", "zjx0_a0b1c1",
-		"zjx0_a1b0c0" , "zjx0_a1b0c1" , "zjx0_a1b1c0" , "zjx0_a1b1c1" };
-	//std::vector<std::string> sequenceNames = { "ants" };
-	float scale = 0.4f;
-	bool produceVideo = false;
+//	std::vector<std::string> sequenceNames = { "zjx0_a0b0c0", "zjx0_a0b0c1", "zjx0_a0b1c0", "zjx0_a0b1c1",
+//		"zjx0_a1b0c0" , "zjx0_a1b0c1" , "zjx0_a1b1c0" , "zjx0_a1b1c1" };
+	std::vector<std::string> sequenceNames = { "crab" };
+	float scale = 1.0f;
+	bool produceVideo = true;
 
 	float learnRates[3] = { 0.02f, 0.08f, 0.16f };
 	TrackerParams params;
@@ -190,15 +240,15 @@ int main() {
 	params.UseDepthHON = true;
 	params.UseDepthNormalHOG = true;
 	params.NumHOGChannelsUsed = 18;
-	params.PCACount = 10;
+	params.PCACount = 0;
 	params.UseNormalForSegment = true;
 	params.UseNormalForDSST = true;
 	params.UseChannelWeights = true;
 	params.UseSegmentation = true;
-	params.AdmmIterations = 4;
+	params.AdmmIterations = 3;
 	params.Padding = 3.0f;
 	params.TemplateSize = 200;
-	params.GaussianSigma = 1.0f;
+	params.GaussianSigma = 1.5f;
 	params.WindowFunc = WindowType::Hann;
 	params.ChebAttenuation = 45.0f;
 	params.KaiserAlpha = 3.75f;
@@ -222,7 +272,7 @@ int main() {
 	params.FailThreshold = 0.08f;
 
 	if (produceVideo) {
-		std::string sequenceName = "ants";
+		std::string sequenceName = "crab";
 		std::string imgPath = basePath + "/" + sequenceName + "/img";
 		std::string gtPath = basePath + "/" + sequenceName + "/gt.txt";
 		std::vector<std::string> files;
@@ -236,16 +286,19 @@ int main() {
 		}
 
 		std::vector<Bounds2f> resgt;
-		ReadGT("result0.txt", resgt);
+		ReadGT("result.txt", resgt);
 		if (resgt.size() != gt.size()) {
 			std::cout << "bounding box count not match!" << std::endl;
 			return 1;
 		}
 		int len = (int)gt.size();
-		cv::VideoWriter voutput;
-		voutput.open("p_" + sequenceName + ".avi", CV_FOURCC('M', 'J', 'P', 'G'), 30.0, cv::Size(1024, 1024));
+		cv::Mat currentFrame = cv::imread(files[0]);
+		int outputWidth = currentFrame.cols;
+		int outputHeight = currentFrame.rows;
 
-		cv::Mat currentFrame;
+		cv::VideoWriter voutput;
+		voutput.open("p_" + sequenceName + ".avi", CV_FOURCC('M', 'J', 'P', 'G'), 30.0, cv::Size(outputWidth, outputHeight));
+
 		int percent = 0, a = 0, b = 0;
 		std::cout << "%" << a << b;
 		for (int i = 0; i < len; ++i) {
@@ -260,11 +313,16 @@ int main() {
 			cv::Rect gtrect(bbgt.pMin.x, bbgt.pMin.y, bbgt.pMax.x - bbgt.pMin.x, bbgt.pMax.y - bbgt.pMin.y);
 			cv::Rect rect(bb.pMin.x, bb.pMin.y, bb.pMax.x - bb.pMin.x, bb.pMax.y - bb.pMin.y);
 
-			cv::rectangle(currentFrame, gtrect, GTColor, 2);
+			DrawDashRect(currentFrame, 2, 4, gtrect, GTColor, 2);
 			cv::rectangle(currentFrame, rect, TrackColor, 2);
 
 			if (bb.pMin.x <= 0) {
-				cv::putText(currentFrame, "Tracking failed.", cv::Point(100, 80), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 0, 255), 2);
+				//cv::putText(currentFrame, "Tracking failed.", cv::Point(100, 80), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 0, 255), 2);
+				rect.x = -rect.x;
+				rect.y = -rect.y;
+				rect.height = -rect.height;
+				rect.width = -rect.width;
+                cv::rectangle(currentFrame, rect, ErrorColor, 2);
 				for (int fk = 0; fk < 60; ++fk)
 					voutput.write(currentFrame);
 				i += 5;
