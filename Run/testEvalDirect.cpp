@@ -1,8 +1,18 @@
+//
+// Evaluate the performance of the object tracker.
+// You need an image sequence named by alphabet order and a ground truth object bounding box list. Method "ReadGT"
+// will fetch the ground truth bounding box information and method "GetImageFile" will fetch the images' names.
+// All the image files should be stored in folder "sequenceName/img". Ground truth bounding box list information
+// should be stored in file "sequenceName/gt.txt". Every line in "gt.txt" should be 4 float number separated by a space,
+// which represents top-left corner x coordinate, top-left corner y coordinate, width and height.
+//
+
 #include "../Source/Core/Processor.h"
 #include <fstream>
 #include <dirent.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/types.hpp>
+#include <opencv2/videoio.hpp>
 
 using namespace CSRT;
 
@@ -211,8 +221,6 @@ private:
 	float robustness;
 };
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/videoio.hpp>
 
 static const cv::Scalar GTColor = cv::Scalar(0, 255, 0);
 static const cv::Scalar TrackColor = cv::Scalar(0, 0, 255);
@@ -221,12 +229,10 @@ static const cv::Scalar ErrorColor = cv::Scalar(255, 0, 0);
 int main() {
 	StartSystem();
 
-	std::string basePath = "/Users/jxzhang/Learn/handtrack/HandData";
-//	std::vector<std::string> sequenceNames = { "zjx0_a0b0c0", "zjx0_a0b0c1", "zjx0_a0b1c0", "zjx0_a0b1c1",
-//		"zjx0_a1b0c0" , "zjx0_a1b0c1" , "zjx0_a1b1c0" , "zjx0_a1b1c1" };
-	std::vector<std::string> sequenceNames = { "crab" };
+	std::string basePath = "/track/data";   // Set the base path.
+	std::vector<std::string> sequenceNames = { "crab" };    // Set the sequence name.
 	float scale = 1.0f;
-	bool produceVideo = true;
+	bool produceVideo = false;  // Set to "true" to generate the final tracking result video.
 
 	float learnRates[3] = { 0.02f, 0.08f, 0.16f };
 	TrackerParams params;
@@ -267,8 +273,6 @@ int main() {
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 0;
 	params.UseScale = true;
-	params.UseSmoother = false;
-	params.UseFastScale = false;
 	params.FailThreshold = 0.08f;
 
 	if (produceVideo) {

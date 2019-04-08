@@ -1,4 +1,6 @@
-// Real time tracker test.
+//
+// Real time tracker test. Used for RGB camera. Need a RealSense device or a Kinect device.
+//
 
 #include "../Source/Core/Processor.h"
 #include "../Source/Core/InfoProvider.h"
@@ -55,10 +57,8 @@ int main() {
 	params.ScaleMaxArea = 512.0f;
 	params.ScaleStep = 1.02f;
 	params.UpdateInterval = 0;
-	params.UseScale = false;
-	params.UseSmoother = false;
-	params.UseFastScale = false;
-	params.FailThreshold = 0.08f;
+    params.UseScale = true;
+    params.FailThreshold = 0.08f;
 
 	// Configure camera
 	std::unique_ptr<CameraService> camera = CreateCameraService(CameraType::RealSense, true, 2);

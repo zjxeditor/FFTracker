@@ -1,4 +1,6 @@
-// Different camera device test.
+//
+// Different camera device test. Current support devices are: RealSense, KinectV1 and KinectV2.
+//
 
 #include "Camera/Camera.h"
 #include <opencv2/opencv.hpp>

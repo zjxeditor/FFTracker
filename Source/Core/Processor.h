@@ -84,8 +84,6 @@ struct TrackerParams {
 
 	int UpdateInterval;			// Update frame interval. Set to 0 or negative to disable background update mode.
 	bool UseScale;          	// Whether use DSST to perform scale estimation.
-	bool UseSmoother;       	// Whether use smoother to filter the tracker outputs.
-	bool UseFastScale;			// Whether use fast dsst method to estimate scale.
 	float FailThreshold;    	// [0, 1] value. Below this threshold will be considered as track failure.
 
 private:

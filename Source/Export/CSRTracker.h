@@ -85,8 +85,10 @@ struct CSRT_API CSRTrackerParams {
     float ChebAttenuation;	    // Attenuation when use Cheb window.
     float KaiserAlpha;		    // Alpha value when use Kaiser window.
 
-    float WeightsLearnRate;	    // Filter weights learn rate.
-    float FilterLearnRate;	    // Filter learn rate.
+    float *WeightsLearnRates;	// Filter weights learn rate.
+    float *FilterLearnRates;	// Filter learn rate.
+    int LearnRateNum;			// The number of weight learn rate and filter learn weight.
+
     float HistLearnRate;	    // Histogram model learn rate.
     float ScaleLearnRate;	    // DSST learn rate.
 
@@ -102,9 +104,10 @@ struct CSRT_API CSRTrackerParams {
 
     int UpdateInterval;		    // Update frame interval. Set to 0 or negative to disable background update mode.
     bool UseScale;              // Whether use DSST to perform scale estimation.
-    bool UseSmoother;           // Whether use smoother to filter the tracker outputs.
-    bool UseFastScale;		    // Whether use fast dsst method to estimate scale.
     float FailThreshold;        // [0, 1] value. Below this threshold will be considered as track failure.
+
+private:
+    static float DefaultLearnRates[3];
 };
 
 enum class CSRTrackMode {

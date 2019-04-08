@@ -1,4 +1,6 @@
-// Feature extraction test.
+//
+// Feature extraction test. Need a RealSense device or a Kinect device.
+//
 
 #include "../Source/Core/Processor.h"
 #include "../Source/Camera/Camera.h"

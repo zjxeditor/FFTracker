@@ -221,68 +221,6 @@ void InfoProvider::GetScaleFeatures(
 }
 
 //
-// Features used for rotation estimation
-//
-
-void InfoProvider::GetRotationFeatures(
-        const Mat& img,
-        MatF& feat,
-        const Vector2f& pos,
-        const Vector2f& orgSize,
-        float currentScale,
-        const std::vector<float>& factors,
-        const MatF& window,
-        const Vector2i& modelSize) const {
-    if (factors.size() != window.Cols() || window.Rows() != 1) {
-        Critical("InfoProvider::GetScaleFeatures: window and factor sizes are not match.");
-        return;
-    }
-
-    // Get the patch.
-    Vector2f patchSize(currentScale * orgSize.x, currentScale * orgSize.y);
-    int diameter = (int)std::ceil(sqrt(pow(patchSize.x, 2.0f) + pow(patchSize.y, 2.0f)));
-    int ksize = (int)std::ceil(sqrt(2.0f) * diameter);
-    Mat basePatch(&GInfoArenas[ThreadIndex]);
-    GFilter.GetSubWindow(img, basePatch, Vector2i((int)pos.x, (int)pos.y), ksize, ksize);
-    Mat resizePatch(&GInfoArenas[ThreadIndex]);
-    basePatch.Resize(resizePatch, (int)std::ceil(modelSize.y * sqrt(2.0f)), (int)std::ceil(modelSize.x * sqrt(2.0f)));
-    Vector2i newCenter(resizePatch.Cols() / 2, resizePatch.Rows() / 2);
-
-    // Calculate first rotation factor
-    Mat orgPatch(&GInfoArenas[ThreadIndex]), patch(&GInfoArenas[ThreadIndex]);
-    resizePatch.Rotate(orgPatch, factors[0]);
-    GFilter.GetSubWindow(orgPatch, patch, newCenter, modelSize.x, modelSize.y);
-    std::vector<MatF> hogs;
-    GFeatsExtractor.GetFeaturesHOG(patch, hogs, 4, &GInfoArenas[ThreadIndex]);
-    int flen = (int)hogs[0].Size();
-    int fcount = (int)hogs.size();
-    MatF featT((int)factors.size(), flen * fcount, &GInfoArenas[ThreadIndex]);
-    ParallelFor([&](int64_t c) {
-        hogs[c].ReValue(window.Data()[0], 0.0f);
-        memcpy(featT.Data() + c * flen, hogs[c].Data(), flen * sizeof(float));
-    }, fcount, 4);
-
-    // Get other scale level features in parallel.
-    ParallelFor([&](int64_t y) {
-        ++y;
-        Mat rotOrgPatch(&GInfoArenas[ThreadIndex]), rotPatch(&GInfoArenas[ThreadIndex]);
-        resizePatch.Rotate(rotOrgPatch, factors[y]);
-        GFilter.GetSubWindow(rotOrgPatch, rotPatch, newCenter, modelSize.x, modelSize.y);
-        std::vector<MatF> rotHogs;
-        GFeatsExtractor.GetFeaturesHOG(rotPatch, rotHogs, 4, &GInfoArenas[ThreadIndex]);
-        float *pd = featT.Data() + y * featT.Cols();
-        for (int i = 0; i < fcount; ++i) {
-            rotHogs[i].ReValue(window.Data()[y], 0.0f);
-            memcpy(pd + i * flen, rotHogs[i].Data(), flen * sizeof(float));
-        }
-    }, factors.size() - 1, 2);
-
-    // Transpose the feat matrix.
-    GFFT.Transpose(featT, feat);
-    ResetArenas();
-}
-
-//
 // Features used for tracker
 //
 
@@ -438,13 +376,11 @@ void InfoProvider::ConfigureTargets(
     currentBounds.resize(targetCount);
     currentPositions.resize(targetCount);
     currentScales.resize(targetCount);
-    currentRotations.resize(targetCount);
     memcpy(&currentBounds[0], &bbs[0], targetCount * sizeof(Bounds2f));
     for (int i = 0; i < targetCount; ++i) {
         orgTargetSizes[i] = currentBounds[i].Diagonal();
 		currentPositions[i] = currentBounds[i].pMin + orgTargetSizes[i] / 2.0f;
         currentScales[i] = 1.0f;
-        currentRotations[i] = 0.0f;
     }
 
     cellSize = 0;
@@ -587,63 +523,6 @@ void InfoProvider::ConfigureDSST(
 	dssts.resize(targetCount, DSST(learnRateOfScale));
 }
 
-void InfoProvider::ConfigureFDSST(int numberOfInterpScales, float stepOfScale, float sigmaFactor, float learnRateOfScale, float maxArea) {
-    if(numberOfInterpScales <= 0 || stepOfScale <= 0.0f) {
-        Critical("InfoProvider::ConfigureDSST: invalid dsst configuration.");
-        return;
-    }
-
-    scaleInterpCount = numberOfInterpScales;
-    if (scaleInterpCount % 2 == 0)	// Scale count must be odd number.
-        ++scaleInterpCount;
-    scaleCount = scaleInterpCount / 2 + 1;
-
-    // Calculate standard response, scale factors and scale window.
-    float scaleSigma = scaleInterpCount * sigmaFactor;
-    MatF gs(1, scaleCount, GInfoArenas);
-    scaleFactors.resize(scaleCount);
-    scaleInterpFactors.resize(scaleInterpCount);
-    int half = scaleCount / 2;
-    float ratio = (float)scaleInterpCount / scaleCount;
-    for (int i = 0; i < scaleCount; ++i) {
-        float ss = (i - half) * ratio;
-        int index = Mod(i - half, scaleCount);
-        scaleFactors[i] = pow(stepOfScale, ss);
-        gs.Data()[index] = exp(-0.5f * pow(ss, 2) / pow(scaleSigma, 2));
-    }
-
-    GFFT.FFT2Row(gs, scaleGSF);
-    GFilter.HannWin(scaleWindow, Vector2i(scaleCount, 1));
-    half = scaleInterpCount / 2;
-    for(int i = 0; i < scaleInterpCount; ++i) {
-        float ss = (float)(i - half);
-        int index = Mod(i - half, scaleInterpCount);
-        scaleInterpFactors[index] = pow(stepOfScale, ss);
-    }
-
-    // Calculate scale model size for this DSST.
-    float scaleModelFactor = 1.0f;
-    if (templateSize.x * templateSize.y > maxArea)
-        scaleModelFactor = sqrt(maxArea / (templateSize.x * templateSize.y));
-    scaleModelSize.x = (int)(templateSize.x * scaleModelFactor);
-    scaleModelSize.y = (int)(templateSize.y * scaleModelFactor);
-
-    // Calculate minimum and maximum scale factors.
-    scaleMinFactors.resize(targetCount);
-    scaleMaxFactors.resize(targetCount);
-    float minFactor = pow(stepOfScale, std::ceil(
-            log(std::max(5.0f / templateSize.x, 5.0f / templateSize.y)) / log(stepOfScale)));
-    for (int i = 0; i < targetCount; ++i) {
-        scaleMinFactors[i] = minFactor;
-        scaleMaxFactors[i] = pow(stepOfScale, std::floor(
-                log(std::min((float)moveSize.y / orgTargetSizes[i].y, (float)moveSize.x / orgTargetSizes[i].x)) / log(stepOfScale)));
-    }
-
-    // Create fdssts.
-    fdssts.clear();
-    fdssts.resize(targetCount, FDSST(learnRateOfScale));
-}
-
 void InfoProvider::ConfigureSegment(
 	int histDim,
 	int histBin,
@@ -700,68 +579,6 @@ void InfoProvider::ConfigureSegment(
 	histLearnRate = learnRateOfHist;
 	postRegularCount = regularCount;
 	maxSegmentArea = maxSegArea;
-}
-
-void InfoProvider::ConfigureSmoother(float stepOfScale) {
-	if(stepOfScale <= 0.0f) {
-		Critical("InfoProvider::ConfigureSmoother: invalid smoother configuration.");
-		return;
-	}
-
-	smoother1Ds.clear();
-	smoother2Ds.clear();
-	smoother1Ds.resize(targetCount);
-	smoother2Ds.resize(targetCount);
-	int referScale = 0;
-	TransformSmoothParamter params2D(0.15f, 0.15f, 0.15f, referScale * 0.05f, referScale * 0.5f);
-	TransformSmoothParamter params1D(0.15f, 0.15f, 0.15f, std::abs(stepOfScale - 1.0f), std::abs(std::pow(stepOfScale, scaleCount / 4.0f) - 1.0f));
-	for (int i = 0; i < targetCount; ++i) {
-		referScale = std::min(orgTargetSizes[i].x, orgTargetSizes[i].y);
-		params2D.fJitterRadius = referScale * 0.05f;
-		params2D.fMaxDeviationRadius = referScale * 0.5f;
-		smoother1Ds[i].Init(params1D);
-		smoother2Ds[i].Init(params2D);
-	}
-}
-
-void InfoProvider::ConfigureRotation(
-        int numberOfRotation,
-        float sigmaFactor,
-        float learnRateOfRotation,
-        float maxArea) {
-    if(numberOfRotation <= 1) {
-        Critical("InfoProvider::ConfigureRotation: invalid rotation configuration.");
-        return;
-    }
-
-    rotationCount = numberOfRotation;
-    if (rotationCount % 2 == 0) // Rotation count must be odd number.
-        ++rotationCount;
-
-    // Calculate standard response, scale factors and scale window.
-    float rotationSigma = sqrt((float)rotationCount) * sigmaFactor;
-    MatF gs(1, rotationCount, GInfoArenas);
-    rotationFactors.resize(rotationCount);
-    float delta = 2.0f * Pi / (rotationCount-1);
-    float rr = -Pi;
-    for (int i = 0; i < rotationCount; ++i) {
-        gs.Data()[i] = exp(-0.5f * pow(rr, 2) / pow(rotationSigma, 2));
-        rotationFactors[i] = rr;
-        rr += delta;
-    }
-    GFilter.HannWin(rotationWindow, Vector2i(rotationCount, 1));
-    GFFT.FFT2Row(gs, rotationGSF);
-
-    // Calculate scale model size for this DSST.
-    float rotationModelFactor = 1.0f;
-    if (templateSize.x * templateSize.y > maxArea)
-        rotationModelFactor = sqrt(maxArea / (templateSize.x * templateSize.y));
-    rotationModelSize.x = (int)(templateSize.x * rotationModelFactor);
-    rotationModelSize.y = (int)(templateSize.y * rotationModelFactor);
-
-    // Create dssts.
-    rotors.clear();
-    rotors.resize(targetCount, RotationEstimator(learnRateOfRotation));
 }
 
 void InfoProvider::GetLocationPrior(
@@ -955,6 +772,5 @@ void InfoProvider::SegmentRegion(
 
 	ResetArenas();
 }
-
 
 }	// namespace CSRT

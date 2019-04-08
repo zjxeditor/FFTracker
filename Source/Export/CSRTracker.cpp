@@ -36,6 +36,7 @@ bool LoadImage(const char *path, int &width, int &height, int &channels, unsigne
     height = img.Rows();
     channels = img.Channels();
     *data = img.Data();
+    if (*data == nullptr) return false;
     return true;
 }
 
@@ -59,6 +60,7 @@ void Critical(const char *message) {
     Critical(std::string(message));
 }
 
+float CSRTrackerParams::DefaultLearnRates[3] = { 0.02f, 0.08f, 0.16f };
 
 CSRTrackerParams::CSRTrackerParams() {
     UseHOG = true;
@@ -87,8 +89,9 @@ CSRTrackerParams::CSRTrackerParams() {
     ChebAttenuation = 45.0f;
     KaiserAlpha = 3.75f;
 
-    WeightsLearnRate = 0.02f;
-    FilterLearnRate = 0.02f;
+    WeightsLearnRates = &DefaultLearnRates[0];
+    FilterLearnRates = &DefaultLearnRates[0];
+    LearnRateNum = 3;
     HistLearnRate = 0.04f;
     ScaleLearnRate = 0.025f;
 
@@ -104,8 +107,6 @@ CSRTrackerParams::CSRTrackerParams() {
 
     UpdateInterval = 4;
     UseScale = true;
-    UseSmoother = false;
-    UseFastScale = false;
     FailThreshold = 0.08f;
 }
 
@@ -172,7 +173,7 @@ bool CSRTracker::Update(unsigned char *sourceData, int channels, CSRT::Bounds *b
 
     std::vector<Bounds2f> outputBoxes;
     processor->Update(image, outputBoxes);
-    memcpy(bbs, &outputBoxes, targets * sizeof(Bounds2f));
+    memcpy(bbs, &outputBoxes[0], targets * sizeof(Bounds2f));
     arena->Reset();
 
     return true;
@@ -185,7 +186,7 @@ bool CSRTracker::Update(float *depthData, float *normalData, CSRT::Bounds *bbs) 
 
     std::vector<Bounds2f> outputBoxes;
     processor->Update(depthM, normalM, outputBoxes);
-    memcpy(bbs, &outputBoxes, targets * sizeof(Bounds2f));
+    memcpy(bbs, &outputBoxes[0], targets * sizeof(Bounds2f));
     arena->Reset();
 
     return true;
