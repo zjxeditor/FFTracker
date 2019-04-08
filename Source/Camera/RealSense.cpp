@@ -5,7 +5,7 @@
 #include "RealSense.h"
 #include "librealsense2/rsutil.h"
 #include "librealsense2/rs_advanced_mode.hpp"
-#include <exception>
+#include <stdexcept>
 
 namespace CSRT {
 

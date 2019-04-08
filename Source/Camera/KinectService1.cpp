@@ -5,7 +5,8 @@
 #ifdef _WIN32
 
 #include "KinectService1.h"
-#include <exception>
+#include <stdexcept>
+#include <cmath>
 
 namespace CSRT {
 
